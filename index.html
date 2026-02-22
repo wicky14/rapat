@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MeetPro — Manajemen Rapat Profesional</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600&family=Merriweather:wght@300;400;700&family=Lato:wght@300;400;700&family=Roboto:wght@300;400;500;700&family=Source+Serif+4:wght@300;400;600;700&family=Nunito:wght@300;400;600;700&family=Poppins:wght@300;400;500;600&family=EB+Garamond:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&family=Crimson+Text:wght@400;600;700&family=Raleway:wght@300;400;500;600&family=Open+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+/* ═══ THEMES ═══ */
+[data-theme="dark"]{--bg:#0f1117;--surface:#171b26;--surface2:#1e2333;--border:#2a2f45;--accent:#4f7cff;--accent2:#7c5cfc;--gold:#f0c96e;--text:#e8ecf4;--text-muted:#8892a4;--text-dim:#5a6478;--danger:#ff5f6d;--success:#4ecb8d;--topbar-bg:rgba(15,17,23,.92);--shadow:0 8px 32px rgba(0,0,0,.45);--shadow-lg:0 20px 60px rgba(0,0,0,.65);--preview-bg:#141824;}
+[data-theme="light"]{--bg:#eef2fb;--surface:#ffffff;--surface2:#f4f7fd;--border:#dce3f0;--accent:#3b6cf5;--accent2:#6844e5;--gold:#c98a0a;--text:#1a1e2d;--text-muted:#5a6478;--text-dim:#9aa3b8;--danger:#de3344;--success:#22a35f;--topbar-bg:rgba(238,242,251,.94);--shadow:0 4px 20px rgba(0,0,0,.09);--shadow-lg:0 12px 40px rgba(0,0,0,.14);--preview-bg:#cdd3e2;}
+
+/* ═══ BASE ═══ */
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;transition:background .3s,color .3s;}
+
+/* ═══ LAYOUT ═══ */
+.app{display:flex;min-height:100vh;}
+
+/* ── SIDEBAR ── */
+.sidebar{width:272px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100;transition:transform .3s cubic-bezier(.4,0,.2,1),background .3s;}
+.sidebar-logo{padding:22px 20px 16px;border-bottom:1px solid var(--border);}
+.logo-mark{display:flex;align-items:center;gap:12px;}
+.logo-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;}
+.logo-text{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;background:linear-gradient(135deg,var(--text),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.logo-sub{font-size:10px;color:var(--text-dim);letter-spacing:.1em;text-transform:uppercase;margin-top:2px;}
+.sidebar-section{padding:10px 12px 0;}
+.nav-label{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);padding:6px 12px 4px;font-weight:600;}
+.nav-btn{display:flex;align-items:center;gap:10px;width:100%;padding:10px 14px;border:none;background:none;color:var(--text-muted);border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;text-align:left;transition:all .2s;}
+.nav-btn:hover{background:var(--surface2);color:var(--text);}
+.nav-btn.active{background:linear-gradient(135deg,rgba(79,124,255,.18),rgba(124,92,252,.12));color:var(--accent);}
+.nav-btn .icon{font-size:16px;width:20px;text-align:center;}
+.meeting-list{padding:4px 12px 8px;flex:1;overflow-y:auto;}
+.meeting-item{padding:9px 12px;border-radius:8px;cursor:pointer;transition:all .18s;border:1px solid transparent;margin-bottom:3px;}
+.meeting-item:hover{background:var(--surface2);border-color:var(--border);}
+.meeting-item.active{background:rgba(79,124,255,.1);border-color:rgba(79,124,255,.3);}
+.mi-title{font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mi-date{font-size:11px;color:var(--text-dim);margin-top:2px;}
+.sidebar-footer{padding:14px 16px;border-top:1px solid var(--border);}
+.btn-new{width:100%;padding:11px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity .2s,transform .2s;}
+.btn-new:hover{opacity:.9;transform:translateY(-1px);}
+
+/* ── MAIN ── */
+.main{margin-left:272px;flex:1;display:flex;flex-direction:column;min-height:100vh;}
+.topbar{position:sticky;top:0;z-index:50;background:var(--topbar-bg);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:10px;transition:background .3s;}
+.topbar-left{display:flex;align-items:center;gap:10px;flex:1;min-width:0;}
+.topbar-title{font-family:'Playfair Display',serif;font-size:19px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.topbar-actions{display:flex;gap:7px;align-items:center;flex-shrink:0;flex-wrap:wrap;}
+
+/* ── BUTTONS ── */
+.btn{padding:8px 15px;border-radius:8px;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px;transition:all .2s;white-space:nowrap;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover{filter:brightness(1.1);transform:translateY(-1px);}
+.btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+.btn-secondary:hover{background:var(--border);}
+.btn-danger{background:rgba(255,95,109,.12);color:var(--danger);border:1px solid rgba(255,95,109,.28);}
+.btn-danger:hover{background:rgba(255,95,109,.22);}
+.btn-gold{background:linear-gradient(135deg,var(--gold),#e0a840);color:#1a1200;font-weight:700;}
+.btn-gold:hover{opacity:.9;transform:translateY(-1px);}
+.btn-sm{padding:5px 11px;font-size:12px;}
+.icon-btn{width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:all .2s;flex-shrink:0;}
+.icon-btn:hover{background:var(--border);color:var(--text);}
+
+/* ── THEME TOGGLE ── */
+.theme-toggle{display:flex;align-items:center;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:3px;gap:2px;}
+.theme-opt{padding:4px 9px;border-radius:16px;font-size:12px;font-weight:600;cursor:pointer;transition:all .22s;border:none;background:none;color:var(--text-muted);}
+.theme-opt.on{background:var(--surface);color:var(--text);box-shadow:0 1px 6px rgba(0,0,0,.2);}
+
+/* ── LP TOGGLE BTN ── */
+.lp-btn{display:flex;align-items:center;gap:7px;padding:7px 13px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;transition:all .2s;white-space:nowrap;}
+.lp-btn.on{background:rgba(79,124,255,.12);border-color:rgba(79,124,255,.42);color:var(--accent);}
+.pill{width:30px;height:16px;background:var(--border);border-radius:9px;position:relative;transition:background .22s;flex-shrink:0;}
+.pill::after{content:'';position:absolute;width:12px;height:12px;border-radius:50%;background:#fff;top:2px;left:2px;transition:left .22s;box-shadow:0 1px 4px rgba(0,0,0,.3);}
+.lp-btn.on .pill{background:var(--accent);}
+.lp-btn.on .pill::after{left:16px;}
+
+/* ── SPLIT LAYOUT ── */
+.editor-split{display:flex;flex:1;overflow:hidden;position:relative;}
+.editor-panel{flex:1;overflow-y:auto;padding:24px 24px 48px;}
+
+/* ── LIVE PREVIEW PANEL (desktop: sidebar-right) ── */
+.lp-panel{
+  width:0;overflow:hidden;
+  background:var(--preview-bg);
+  border-left:1px solid var(--border);
+  transition:width .35s cubic-bezier(.4,0,.2,1);
+  display:flex;flex-direction:column;
+  position:relative;
+}
+.lp-panel.open{width:var(--lp-width, 420px);}
+
+/* ── LP HEADER ── */
+.lp-header{
+  padding:10px 12px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:6px;
+  background:var(--surface);flex-shrink:0;
+  user-select:none;
+}
+.lp-header-title{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-muted);flex:1;}
+.zoom-controls{display:flex;align-items:center;gap:4px;}
+.zoom-btn{width:26px;height:26px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;transition:all .15s;line-height:1;}
+.zoom-btn:hover{background:var(--border);}
+.zoom-val{font-size:11px;font-weight:700;color:var(--text-muted);min-width:34px;text-align:center;font-family:'DM Mono',monospace;}
+
+/* ── LP CLOSE (mobile) ── */
+.lp-close-btn{display:none;width:32px;height:32px;border-radius:50%;border:1px solid var(--border);background:var(--danger);color:#fff;cursor:pointer;font-size:16px;align-items:center;justify-content:center;flex-shrink:0;}
+
+/* ── LP SCROLL AREA ── */
+.lp-scroll{flex:1;overflow:auto;padding:16px 12px;}
+.lp-page-wrap{margin:0 auto 12px;overflow:hidden;/* width set via JS */}
+/* The actual a4-page inside preview: always true 794px wide, scaled */
+.lp-page-wrap .a4-page{
+  width:794px !important;
+  transform-origin:top left;
+  /* transform set dynamically via JS */
+  margin:0 !important;
+}
+
+/* ── RESIZE HANDLE ── */
+.lp-resize{
+  position:absolute;left:0;top:0;bottom:0;width:6px;
+  cursor:col-resize;z-index:10;
+  background:transparent;
+  transition:background .2s;
+}
+.lp-resize:hover,.lp-resize.dragging{background:var(--accent);}
+
+/* ── MOBILE LP OVERLAY ── */
+/* On mobile, LP opens as a bottom-sheet modal, NOT full-screen inset */
+@media(max-width:768px){
+  .lp-panel.open{
+    position:fixed;
+    bottom:0;left:0;right:0;
+    width:100% !important;
+    height:70vh;
+    border-left:none;
+    border-top:1px solid var(--border);
+    border-radius:16px 16px 0 0;
+    z-index:150;
+    box-shadow:0 -8px 40px rgba(0,0,0,.4);
+    transition:height .35s cubic-bezier(.4,0,.2,1);
+  }
+  .lp-close-btn{display:flex;}
+  .lp-resize{display:none;}
+}
+
+/* ── CONTENT ── */
+.content{padding:24px 24px 48px;flex:1;}
+
+/* ── FORMS ── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.form-group{display:flex;flex-direction:column;gap:5px;}
+.form-group.full{grid-column:1/-1;}
+label{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);}
+input,select,textarea{background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;padding:10px 13px;outline:none;transition:border-color .2s,box-shadow .2s;}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(79,124,255,.15);}
+textarea{resize:vertical;min-height:80px;}
+select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%238892a4' viewBox='0 0 24 24'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-size:20px;padding-right:38px;}
+
+/* ── CARDS ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:20px;margin-bottom:16px;transition:background .3s,border-color .3s;}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;}
+.card-title{font-family:'Playfair Display',serif;font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px;}
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:100px;font-size:11px;font-weight:600;}
+.badge-blue{background:rgba(79,124,255,.15);color:var(--accent);}
+.badge-gold{background:rgba(240,201,110,.15);color:var(--gold);}
+.badge-green{background:rgba(78,203,141,.15);color:var(--success);}
+
+/* ── RICH TEXT ── */
+.rich-toolbar{display:flex;flex-wrap:wrap;gap:2px;padding:7px 9px;background:var(--surface2);border:1px solid var(--border);border-bottom:none;border-radius:8px 8px 0 0;}
+.rich-toolbar button{width:27px;height:26px;background:none;border:none;border-radius:5px;cursor:pointer;color:var(--text-muted);font-size:13px;display:flex;align-items:center;justify-content:center;transition:all .15s;font-family:'DM Sans',sans-serif;}
+.rich-toolbar button:hover{background:var(--border);color:var(--text);}
+.rich-toolbar .sep{width:1px;background:var(--border);margin:2px 3px;align-self:stretch;}
+.rich-editor{min-height:110px;background:var(--surface2);border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;padding:11px 13px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;line-height:1.7;outline:none;}
+.rich-editor:focus{border-color:var(--accent);}
+.rich-editor ul,.rich-editor ol{padding-left:20px;}
+
+/* ── TABLES ── */
+.points-table,.att-table{width:100%;border-collapse:collapse;}
+.points-table th,.att-table th{text-align:left;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);padding:9px 13px;background:var(--surface2);border-bottom:1px solid var(--border);}
+.points-table td{padding:11px 13px;border-bottom:1px solid rgba(42,47,69,.4);vertical-align:top;font-size:13px;}
+.att-table td{padding:7px 13px;border-bottom:1px solid rgba(42,47,69,.4);}
+[data-theme="light"] .points-table td,[data-theme="light"] .att-table td{border-bottom-color:rgba(200,210,230,.5);}
+.points-table tr:last-child td,.att-table tr:last-child td{border-bottom:none;}
+.num-cell{width:44px;text-align:center;color:var(--accent);font-family:'DM Mono',monospace;font-size:12px;}
+.act-cell{width:88px;text-align:right;}
+.p-poin{font-weight:600;color:var(--text);}
+.p-desc{color:var(--text-muted);font-size:12px;margin-top:2px;}
+.att-inp{background:none;border:none;color:var(--text);width:100%;padding:0;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;border-bottom:1px solid transparent;}
+.att-inp:focus{border-bottom-color:var(--accent);}
+
+/* ── DOC GRID ── */
+.doc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(126px,1fr));gap:10px;}
+.doc-item{background:var(--surface2);border:1px solid var(--border);border-radius:8px;overflow:hidden;position:relative;aspect-ratio:4/3;}
+.doc-item img{width:100%;height:100%;object-fit:cover;display:block;}
+.doc-remove{position:absolute;top:4px;right:4px;width:22px;height:22px;background:rgba(255,95,109,.85);color:#fff;border:none;border-radius:50%;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;}
+.doc-item:hover .doc-remove,.doc-item:focus-within .doc-remove{opacity:1;}
+.doc-placeholder{background:var(--surface2);border:2px dashed var(--border);border-radius:8px;aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;color:var(--text-dim);font-size:12px;gap:5px;}
+.doc-placeholder:hover{border-color:var(--accent);color:var(--accent);background:rgba(79,124,255,.05);}
+.cap-inp{margin-top:4px;background:var(--surface2);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:11px;padding:4px 8px;width:100%;outline:none;}
+.cap-inp:focus{border-color:var(--accent);}
+
+/* ── EMPTY STATE ── */
+.empty-state{text-align:center;padding:70px 40px;}
+.empty-icon{font-size:54px;margin-bottom:14px;opacity:.4;}
+.empty-title{font-family:'Playfair Display',serif;font-size:23px;margin-bottom:8px;}
+.empty-sub{color:var(--text-muted);font-size:14px;margin-bottom:24px;}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:2px;background:var(--surface2);border-radius:8px;padding:4px;margin-bottom:20px;}
+.tab{flex:1;padding:8px 14px;border:none;background:none;border-radius:6px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;color:var(--text-muted);transition:all .2s;}
+.tab.active{background:var(--surface);color:var(--text);box-shadow:0 2px 8px rgba(0,0,0,.18);}
+
+/* ── MOBILE TOGGLE ── */
+.mob-toggle{display:none;padding:7px 9px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);cursor:pointer;font-size:17px;line-height:1;}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:90;}
+
+/* ── PREVIEW MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:200;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;}
+.modal{background:var(--surface);border-radius:14px;border:1px solid var(--border);width:100%;max-width:900px;position:relative;}
+.modal-header{padding:16px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.modal-close{width:30px;height:30px;background:var(--surface2);border:1px solid var(--border);border-radius:50%;cursor:pointer;color:var(--text);font-size:15px;display:flex;align-items:center;justify-content:center;}
+.modal-close:hover{background:var(--border);}
+
+/* ── PDF RENDER AREA (always 794px, scrollable in modal) ── */
+#pdf-preview-container{background:#a8afc2;padding:24px;overflow-x:auto;}
+/* TRUE A4 page — never shrinks for layout. Scaled by browser zoom only */
+.a4-page{
+  width:794px;min-height:1123px;background:#fff;
+  margin:0 auto 18px;padding:56px 56px 76px;
+  color:#1a1e2d;font-family:'DM Sans',sans-serif;font-size:12px;line-height:1.6;
+  position:relative;box-shadow:0 4px 22px rgba(0,0,0,.3);
+  /* Never let responsive CSS shrink this */
+  flex-shrink:0;
+}
+.pdf-header{display:flex;align-items:flex-start;justify-content:space-between;padding-bottom:17px;border-bottom:3px solid #1a1e2d;margin-bottom:24px;}
+.pdf-logo-text{font-family:'Playfair Display',serif;font-size:24px;font-weight:700;color:#1a1e2d;}
+.pdf-doc-type{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#7c8497;margin-top:2px;}
+.pdf-header-right{text-align:right;font-size:11px;color:#5a6478;}
+.pdf-title{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:#1a1e2d;margin-bottom:17px;}
+.pdf-meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px 22px;padding:13px 17px;background:#f4f7fc;border-radius:8px;border-left:4px solid #4f7cff;margin-bottom:24px;font-size:11px;}
+.pdf-meta-label{color:#7c8497;font-weight:600;text-transform:uppercase;font-size:9.5px;letter-spacing:.06em;}
+.pdf-meta-value{color:#1a1e2d;font-weight:500;margin-top:1px;}
+.pdf-sec-title{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#4f7cff;margin-bottom:9px;display:flex;align-items:center;gap:8px;}
+.pdf-sec-title::after{content:'';flex:1;height:1px;background:#e2e8f0;}
+.pdf-tbl{width:100%;border-collapse:collapse;font-size:11px;}
+.pdf-tbl th{background:#1a1e2d;color:#e8ecf4;text-align:left;padding:9px 12px;font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;}
+.pdf-tbl td{padding:9px 12px;border-bottom:1px solid #e8ecf4;color:#1a1e2d;vertical-align:top;}
+.pdf-tbl tr:nth-child(even) td{background:#f8fafc;}
+.pdf-tbl .nc{width:36px;text-align:center;color:#4f7cff;font-weight:700;}
+.pdf-tbl .pc{width:28%;font-weight:600;}
+.pdf-att-tbl{width:100%;border-collapse:collapse;font-size:11px;}
+.pdf-att-tbl th{background:#1a1e2d;color:#e8ecf4;text-align:left;padding:9px 11px;font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;}
+.pdf-att-tbl td{padding:9px 11px;border-bottom:1px solid #e8ecf4;}
+.pdf-att-tbl tr:nth-child(even) td{background:#f8fafc;}
+.sig-box{border:1px solid #d1d9e6;border-radius:6px;padding:34px 16px 12px;text-align:center;font-size:10px;color:#7c8497;min-width:140px;}
+.sig-name{font-weight:700;color:#1a1e2d;font-size:11px;margin-top:4px;}
+.sig-role{color:#7c8497;font-size:10px;}
+.pdf-page-num{position:absolute;bottom:26px;left:0;right:0;text-align:center;font-size:10px;color:#b0b8cc;}
+.pdf-footer-bar{position:absolute;bottom:0;left:0;right:0;height:5px;background:linear-gradient(135deg,#4f7cff,#7c5cfc);}
+.pdf-doc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:9px;}
+.pdf-doc-cell{display:flex;flex-direction:column;gap:4px;}
+.pdf-doc-cell img{width:100%;height:128px;object-fit:cover;border-radius:5px;border:1px solid #e2e8f0;}
+.pdf-doc-caption{font-size:9.5px;color:#7c8497;text-align:center;}
+
+/* ── FONT PICKER MODAL ── */
+.font-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:400;display:flex;align-items:center;justify-content:center;padding:20px;}
+.font-modal{background:var(--surface);border:1px solid var(--border);border-radius:18px;width:100%;max-width:560px;max-height:88vh;display:flex;flex-direction:column;box-shadow:var(--shadow-lg);animation:popIn .22s cubic-bezier(.34,1.56,.64,1) forwards;}
+.font-modal-header{padding:18px 22px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.font-modal-header h2{font-family:'Playfair Display',serif;font-size:18px;font-weight:700;}
+.font-modal-body{padding:20px 22px;overflow-y:auto;flex:1;}
+.font-section{margin-bottom:22px;}
+.font-section-label{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px;}
+.font-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:8px;}
+.font-card{padding:10px 12px;border:2px solid var(--border);border-radius:10px;cursor:pointer;transition:all .18s;background:var(--surface2);}
+.font-card:hover{border-color:var(--accent);background:rgba(79,124,255,.06);}
+.font-card.selected{border-color:var(--accent);background:rgba(79,124,255,.12);}
+.font-card-name{font-size:11px;color:var(--text-muted);margin-bottom:4px;font-weight:600;}
+.font-card-preview{font-size:15px;color:var(--text);line-height:1.3;}
+.font-size-row{display:flex;align-items:center;gap:10px;}
+.font-size-btn{width:34px;height:34px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.font-size-btn:hover{background:var(--border);}
+.font-size-display{font-size:15px;font-weight:700;min-width:38px;text-align:center;color:var(--text);}
+.font-preview-box{margin-top:20px;padding:16px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;}
+.font-preview-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px;}
+.font-preview-heading{font-size:18px;font-weight:700;color:var(--text);margin-bottom:4px;line-height:1.3;}
+.font-preview-body{font-size:13px;color:var(--text-muted);line-height:1.6;}
+.font-modal-footer{padding:14px 22px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;}
+/* ── FONT BTN in topbar ── */
+.font-topbar-btn{display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;transition:all .2s;white-space:nowrap;}
+.font-topbar-btn:hover{background:var(--border);color:var(--text);}
+
+.confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;}
+.confirm-box{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:30px 26px;max-width:370px;width:100%;box-shadow:var(--shadow-lg);animation:popIn .22s cubic-bezier(.34,1.56,.64,1) forwards;}
+@keyframes popIn{from{opacity:0;transform:scale(.88) translateY(10px);}to{opacity:1;transform:scale(1) translateY(0);}}
+.confirm-icon{font-size:46px;text-align:center;margin-bottom:14px;}
+.confirm-title{font-family:'Playfair Display',serif;font-size:19px;font-weight:700;text-align:center;margin-bottom:8px;}
+.confirm-msg{color:var(--text-muted);font-size:13px;text-align:center;line-height:1.65;margin-bottom:22px;}
+.confirm-actions{display:flex;gap:10px;justify-content:center;}
+.confirm-actions .btn{padding:10px 22px;font-size:14px;}
+
+/* ── SPINNER / TOAST / ANIM ── */
+.spinner{display:inline-block;width:13px;height:13px;border:2px solid rgba(79,124,255,.3);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;}
+@keyframes spin{to{transform:rotate(360deg);}}
+#toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:11px 20px;font-size:13px;font-weight:500;box-shadow:var(--shadow);z-index:700;transition:transform .3s;pointer-events:none;}
+#toast.show{transform:translateX(-50%) translateY(0);}
+@keyframes fadeUp{from{opacity:0;transform:translateY(13px);}to{opacity:1;transform:translateY(0);}}
+.fade-up{animation:fadeUp .3s ease forwards;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px;}
+
+/* ── RESPONSIVE ── */
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%);width:256px;}
+  .sidebar.open{transform:translateX(0);}
+  .sidebar-overlay.show{display:block;}
+  .main{margin-left:0;}
+  .mob-toggle{display:flex;}
+  .content,.editor-panel{padding:14px 14px 48px;}
+  .topbar{padding:11px 14px;}
+  .form-grid{grid-template-columns:1fr;}
+  .form-group.full{grid-column:1;}
+  .hide-mobile{display:none !important;}
+  /* PDF modal: horizontally scrollable on mobile */
+  .modal{border-radius:10px;}
+  #pdf-preview-container{padding:12px;}
+}
+</style>
+</head>
+<body>
+<div id="toast"></div>
+
+<!-- Confirm Modal -->
+<div class="confirm-overlay" id="confirmModal" style="display:none;" onclick="if(event.target===this)closeConfirm()">
+  <div class="confirm-box">
+    <div class="confirm-icon" id="cIcon">🗑</div>
+    <div class="confirm-title" id="cTitle">Hapus?</div>
+    <div class="confirm-msg" id="cMsg">Aksi ini tidak dapat dibatalkan.</div>
+    <div class="confirm-actions">
+      <button class="btn btn-secondary" onclick="closeConfirm()">Batal</button>
+      <button class="btn btn-danger" id="cOk">Ya, Hapus</button>
+    </div>
+  </div>
+</div>
+
+<!-- Font Picker Modal -->
+<div class="font-modal-overlay" id="fontModal" style="display:none;" onclick="if(event.target===this)closeFontModal()">
+  <div class="font-modal">
+    <div class="font-modal-header">
+      <h2>🔤 Font Dokumen</h2>
+      <button class="modal-close" onclick="closeFontModal()">✕</button>
+    </div>
+    <div class="font-modal-body">
+
+      <div class="font-section">
+        <div class="font-section-label">Font Judul & Heading</div>
+        <div class="font-grid" id="headingFontGrid"></div>
+      </div>
+
+      <div class="font-section">
+        <div class="font-section-label">Font Isi / Body</div>
+        <div class="font-grid" id="bodyFontGrid"></div>
+      </div>
+
+      <div class="font-section">
+        <div class="font-section-label">Ukuran Teks Body</div>
+        <div class="font-size-row">
+          <button class="font-size-btn" onclick="changeFontSize(-1)">−</button>
+          <div class="font-size-display" id="fontSizeDisplay">12px</div>
+          <button class="font-size-btn" onclick="changeFontSize(+1)">+</button>
+        </div>
+      </div>
+
+      <div class="font-preview-box">
+        <div class="font-preview-label">Preview Dokumen</div>
+        <div class="font-preview-heading" id="previewHeading">Rapat Koordinasi Bulanan</div>
+        <div class="font-preview-body" id="previewBody">Rapat membahas laporan kinerja Q3, evaluasi target tahunan, dan rencana strategis untuk kuartal berikutnya. Seluruh peserta sepakat untuk meningkatkan efisiensi operasional.</div>
+      </div>
+    </div>
+    <div class="font-modal-footer">
+      <button class="btn btn-secondary" onclick="resetFonts()">↺ Reset Default</button>
+      <button class="btn btn-primary" onclick="applyFonts()">✓ Terapkan</button>
+    </div>
+  </div>
+</div>
+
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<div class="app">
+<!-- ═══ SIDEBAR ═══ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">
+      <div class="logo-icon">📋</div>
+      <div><div class="logo-text">MeetPro</div><div class="logo-sub">Meeting Manager</div></div>
+    </div>
+  </div>
+  <div class="sidebar-section">
+    <div class="nav-label">Navigasi</div>
+    <button class="nav-btn active" id="nav-list" onclick="showSection('list')"><span class="icon">🗂</span> Daftar Rapat</button>
+    <button class="nav-btn" id="nav-form" onclick="showSection('form')"><span class="icon">✏️</span> Buat / Edit Rapat</button>
+  </div>
+  <div style="padding:10px 12px 0"><div class="nav-label">Rapat Tersimpan</div></div>
+  <div class="meeting-list" id="sidebarList"></div>
+  <div class="sidebar-footer"><button class="btn-new" onclick="newMeeting()">＋ Rapat Baru</button></div>
+</aside>
+
+<!-- ═══ MAIN ═══ -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="mob-toggle" onclick="openSidebar()">☰</button>
+      <div class="topbar-title" id="topTitle">Daftar Rapat</div>
+    </div>
+    <div class="topbar-actions" id="topActions"></div>
+  </div>
+
+  <!-- Editor + Live Preview split -->
+  <div class="editor-split" id="editorSplit" style="display:none;">
+    <div class="editor-panel" id="editorPanel"></div>
+
+    <!-- Live Preview Panel -->
+    <div class="lp-panel" id="lpPanel">
+      <!-- Resize handle (desktop only) -->
+      <div class="lp-resize" id="lpResize" title="Drag to resize"></div>
+
+      <div class="lp-header">
+        <span>👁</span>
+        <span class="lp-header-title">Live Preview</span>
+        <div class="zoom-controls">
+          <button class="zoom-btn" onclick="zoomLP(-10)" title="Zoom Out">−</button>
+          <span class="zoom-val" id="zoomVal">55%</span>
+          <button class="zoom-btn" onclick="zoomLP(+10)" title="Zoom In">+</button>
+          <button class="zoom-btn" onclick="zoomLP(0)" title="Reset Zoom" style="font-size:11px;width:34px;">↺</button>
+        </div>
+        <!-- Close button (mobile) -->
+        <button class="lp-close-btn" id="lpCloseBtn" onclick="closeLPMobile()" title="Tutup Preview">✕</button>
+      </div>
+      <div class="lp-scroll" id="lpScroll"></div>
+    </div>
+  </div>
+
+  <div class="content" id="mainContent"></div>
+</div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal-overlay" id="previewModal" style="display:none;" onclick="if(event.target===this)closePreview()">
+  <div class="modal">
+    <div class="modal-header">
+      <div style="font-family:'Playfair Display',serif;font-size:17px;font-weight:600;">Preview Dokumen Rapat</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn btn-gold" id="dlBtn" onclick="downloadPDF()">⬇ Download PDF</button>
+        <button class="modal-close" onclick="closePreview()">✕</button>
+      </div>
+    </div>
+    <!-- Scrollable container so A4 pages are never clipped on mobile -->
+    <div style="overflow-x:auto;overflow-y:auto;max-height:85vh;">
+      <div id="pdf-preview-container"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden off-screen render surface for PDF export (always full 794px) -->
+<div id="pdf-render-surface" style="position:fixed;left:-9999px;top:0;z-index:-1;pointer-events:none;"></div>
+
+<script>
+/* ═══════ STATE ═══════ */
+let meetings = JSON.parse(localStorage.getItem('meetpro_v3') || '[]');
+let currentMeetingId = null;
+let currentSection = 'list';
+let activeTab = 'minutes';
+let editingPointIdx = null;
+let lpOpen = false;
+let lpZoom = 55;          // percentage zoom for live preview
+let lpWidth = 420;        // desktop panel width
+let lpTimer = null;
+let theme = localStorage.getItem('meetpro_theme') || 'dark';
+
+let draft = makeDraft();
+function makeDraft(){ return {id:null,judul:'',tanggal:'',waktu:'',waktu_selesai:'',tempat:'',pimpinan:'',notulis:'',perihal:'',points:[],peserta:[],dokumen:[]}; }
+
+/* ═══════ THEME ═══════ */
+function applyTheme(t){ theme=t; document.documentElement.setAttribute('data-theme',t); localStorage.setItem('meetpro_theme',t); }
+function themeHTML(){ return `<div class="theme-toggle"><button class="theme-opt ${theme==='light'?'on':''}" onclick="applyTheme('light');rerenderTopbar()">☀</button><button class="theme-opt ${theme==='dark'?'on':''}" onclick="applyTheme('dark');rerenderTopbar()">🌙</button></div>`; }
+function rerenderTopbar(){ currentSection==='list' ? renderListTopbar() : renderFormTopbar(); }
+
+/* ═══════ CONFIRM ═══════ */
+function showConfirm({icon='🗑',title,msg,okLabel='Hapus',okClass='btn-danger',onOk}){
+  document.getElementById('cIcon').textContent=icon;
+  document.getElementById('cTitle').textContent=title;
+  document.getElementById('cMsg').textContent=msg;
+  const ok=document.getElementById('cOk');
+  ok.className='btn '+okClass; ok.textContent=okLabel;
+  ok.onclick=()=>{ closeConfirm(); onOk&&onOk(); };
+  document.getElementById('confirmModal').style.display='flex';
+}
+function closeConfirm(){ document.getElementById('confirmModal').style.display='none'; }
+
+/* ═══════ UTILS ═══════ */
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2);
+const save=()=>localStorage.setItem('meetpro_v3',JSON.stringify(meetings));
+const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function toast(msg,dur=2500){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),dur); }
+function formatDate(d){ if(!d)return'—'; try{ return new Date(d+'T00:00:00').toLocaleDateString('id-ID',{weekday:'long',year:'numeric',month:'long',day:'numeric'}); }catch(e){return d;} }
+
+/* ═══════ SIDEBAR ═══════ */
+function openSidebar(){ document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('show'); }
+function closeSidebar(){ document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('show'); }
+function renderSidebarList(){
+  const el=document.getElementById('sidebarList'); if(!el) return;
+  if(!meetings.length){ el.innerHTML='<div style="padding:10px 14px;font-size:12px;color:var(--text-dim)">Belum ada rapat</div>'; return; }
+  el.innerHTML=meetings.slice().reverse().map(m=>`
+    <div class="meeting-item ${currentMeetingId===m.id?'active':''}" onclick="loadMeeting('${m.id}')">
+      <div class="mi-title">${esc(m.judul||'Rapat Tanpa Judul')}</div>
+      <div class="mi-date">${m.tanggal?formatDate(m.tanggal):'—'}</div>
+    </div>`).join('');
+}
+
+/* ═══════ SECTION SWITCH ═══════ */
+function showSection(sec){
+  currentSection=sec;
+  ['list','form'].forEach(s=>document.getElementById('nav-'+s)?.classList.remove('active'));
+  document.getElementById('nav-'+sec)?.classList.add('active');
+  const split=document.getElementById('editorSplit');
+  const content=document.getElementById('mainContent');
+  if(sec==='list'){ split.style.display='none'; content.style.display=''; lpOpen=false; updateLPPanel(); renderList(); }
+  else { split.style.display='flex'; content.style.display='none'; renderForm(); }
+  closeSidebar();
+}
+
+/* ═══════ LIST ═══════ */
+function renderListTopbar(){
+  document.getElementById('topTitle').textContent='Daftar Rapat';
+  document.getElementById('topActions').innerHTML=`${themeHTML()}<button class="font-topbar-btn" onclick="openFontModal()" title="Ganti Font Dokumen">🔤 <span class="hide-mobile" style="font-family:'${docHeadingFont}',serif">${docHeadingFont.split(' ')[0]}</span></button><button class="btn btn-primary" onclick="newMeeting()">＋ Rapat Baru</button>`;
+}
+function renderList(){
+  renderListTopbar(); renderSidebarList();
+  if(!meetings.length){
+    document.getElementById('mainContent').innerHTML=`<div class="empty-state fade-up"><div class="empty-icon">🗓</div><div class="empty-title">Belum Ada Rapat</div><div class="empty-sub">Mulai buat rapat pertama untuk dokumentasi profesional</div><button class="btn btn-primary" style="margin:auto" onclick="newMeeting()">＋ Buat Rapat Baru</button></div>`;
+    return;
+  }
+  document.getElementById('mainContent').innerHTML=`<div class="fade-up" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;">
+    ${meetings.slice().reverse().map(m=>`<div style="background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:19px;transition:border-color .2s,box-shadow .2s;cursor:pointer;"
+      onmouseover="this.style.borderColor='var(--accent)';this.style.boxShadow='var(--shadow)'"
+      onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none'"
+      onclick="loadMeeting('${m.id}')">
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px"><div class="badge badge-blue">${m.points?.length||0} Poin</div><div class="badge badge-green">${m.peserta?.length||0} Peserta</div></div>
+      <div style="font-family:'Playfair Display',serif;font-size:16px;font-weight:600;margin-bottom:7px;line-height:1.3">${esc(m.judul||'Rapat Tanpa Judul')}</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:3px">📅 ${m.tanggal?formatDate(m.tanggal):'—'}${m.waktu?' · '+m.waktu+(m.waktu_selesai?' – '+m.waktu_selesai:''):''}</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:3px">📍 ${esc(m.tempat||'—')}</div>
+      <div style="font-size:12px;color:var(--text-muted)">👤 ${esc(m.pimpinan||'—')}</div>
+      <div style="display:flex;gap:7px;margin-top:13px;flex-wrap:wrap">
+        <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();loadMeeting('${m.id}')">✏ Edit</button>
+        <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();previewMeeting('${m.id}')">👁 Preview</button>
+        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();confirmDeleteMeeting('${m.id}')">🗑</button>
+      </div>
+    </div>`).join('')}
+  </div>`;
+}
+
+/* ═══════ MEETING CRUD ═══════ */
+function newMeeting(){ currentMeetingId=null; draft=makeDraft(); activeTab='minutes'; lpOpen=false; showSection('form'); }
+function loadMeeting(id){ const m=meetings.find(x=>x.id===id); if(!m)return; currentMeetingId=id; draft=JSON.parse(JSON.stringify(m)); activeTab='minutes'; showSection('form'); }
+
+function confirmDeleteMeeting(id){
+  const m=meetings.find(x=>x.id===id);
+  showConfirm({icon:'🗑',title:'Hapus Rapat?',msg:`Rapat "${m?.judul||'ini'}" akan dihapus permanen.`,okLabel:'Ya, Hapus',onOk:()=>deleteMeeting(id)});
+}
+function deleteMeeting(id){
+  meetings=meetings.filter(m=>m.id!==id); save();
+  if(currentMeetingId===id) currentMeetingId=null;
+  toast('🗑 Rapat dihapus'); renderSidebarList();
+  if(currentSection==='list') renderList(); else showSection('list');
+}
+function confirmDeletePoint(i){ showConfirm({icon:'📝',title:'Hapus Poin?',msg:`Poin ke-${i+1} "${draft.points[i]?.poin||''}" akan dihapus.`,okLabel:'Hapus Poin',onOk:()=>{ draft.points.splice(i,1); renderTabContent(); scheduleLP(); }}); }
+function confirmDeletePeserta(i){ showConfirm({icon:'👤',title:'Hapus Peserta?',msg:`"${draft.peserta[i]?.nama||'Peserta '+(i+1)}" akan dihapus.`,okLabel:'Hapus Peserta',onOk:()=>{ collectAttendance(); draft.peserta.splice(i,1); renderTabContent(); scheduleLP(); }}); }
+function confirmRemoveDoc(i){ showConfirm({icon:'🖼',title:'Hapus Foto?',msg:`Foto ke-${i+1} akan dihapus.`,okLabel:'Hapus Foto',onOk:()=>{ draft.dokumen.splice(i,1); renderTabContent(); scheduleLP(); }}); }
+
+/* ═══════ LIVE PREVIEW ═══════ */
+function toggleLP(){
+  lpOpen=!lpOpen;
+  updateLPPanel();
+  const btn=document.getElementById('lpToggle'); if(btn) btn.className=`lp-btn ${lpOpen?'on':''}`;
+  if(lpOpen) scheduleLP();
+}
+
+function closeLPMobile(){
+  lpOpen=false;
+  updateLPPanel();
+  const btn=document.getElementById('lpToggle'); if(btn) btn.className='lp-btn';
+}
+
+function updateLPPanel(){
+  const panel=document.getElementById('lpPanel'); if(!panel) return;
+  const isMobile=window.innerWidth<=768;
+  if(lpOpen){
+    panel.classList.add('open');
+    if(!isMobile) panel.style.width=lpWidth+'px';
+  } else {
+    panel.classList.remove('open');
+    if(!isMobile) panel.style.width='0';
+  }
+}
+
+function zoomLP(delta){
+  if(delta===0){ lpZoom=55; } // reset
+  else { lpZoom=Math.max(20,Math.min(100,lpZoom+delta)); }
+  document.getElementById('zoomVal').textContent=lpZoom+'%';
+  applyLPZoom();
+}
+
+function applyLPZoom(){
+  const scale=lpZoom/100;
+  const wrappedWidth=Math.round(794*scale);
+  document.querySelectorAll('.lp-page-wrap').forEach(wrap=>{
+    wrap.style.width=wrappedWidth+'px';
+    wrap.style.height=Math.round(1123*scale)+'px'; // approx visible height
+    const page=wrap.querySelector('.a4-page');
+    if(page) page.style.transform=`scale(${scale})`;
+  });
+}
+
+function scheduleLP(){ if(!lpOpen)return; clearTimeout(lpTimer); lpTimer=setTimeout(refreshLP,380); }
+
+function refreshLP(){
+  if(!lpOpen)return;
+  const scroll=document.getElementById('lpScroll'); if(!scroll)return;
+  const tmp=snapshotDraft(); scroll.innerHTML='';
+  const addWrap=page=>{ const w=document.createElement('div'); w.className='lp-page-wrap'; w.appendChild(page); scroll.appendChild(w); };
+  addWrap(buildPage1(tmp)); addWrap(buildPage2(tmp));
+  if(tmp.dokumen?.length) addWrap(buildPage3(tmp));
+  applyLPZoom();
+}
+
+/* ═══════ RESIZE HANDLE ═══════ */
+(function initResize(){
+  let dragging=false, startX=0, startW=0;
+  document.addEventListener('mousedown',e=>{
+    const handle=document.getElementById('lpResize'); if(!handle||!handle.contains(e.target))return;
+    dragging=true; startX=e.clientX; startW=lpWidth;
+    handle.classList.add('dragging'); document.body.style.cursor='col-resize'; document.body.style.userSelect='none';
+  });
+  document.addEventListener('mousemove',e=>{
+    if(!dragging)return;
+    const delta=startX-e.clientX; // dragging left handle: moving left increases width
+    lpWidth=Math.max(280,Math.min(700,startW+delta));
+    const panel=document.getElementById('lpPanel'); if(panel&&lpOpen) panel.style.width=lpWidth+'px';
+  });
+  document.addEventListener('mouseup',()=>{ if(!dragging)return; dragging=false; document.getElementById('lpResize')?.classList.remove('dragging'); document.body.style.cursor=''; document.body.style.userSelect=''; });
+})();
+
+/* ═══════ FORM SECTION ═══════ */
+function renderFormTopbar(){
+  document.getElementById('topTitle').textContent=draft.id?'Edit Rapat':'Rapat Baru';
+  document.getElementById('topActions').innerHTML=`
+    ${themeHTML()}
+    <button class="lp-btn ${lpOpen?'on':''}" id="lpToggle" onclick="toggleLP()">
+      <div class="pill"></div>
+      <span class="hide-mobile">Live Preview</span>
+    </button>
+    <button class="font-topbar-btn" onclick="openFontModal()" title="Ganti Font Dokumen">🔤 <span class="hide-mobile" style="font-family:'${docHeadingFont}',serif">${docHeadingFont.split(' ')[0]}</span></button>
+    <button class="btn btn-secondary" onclick="showSection('list')">← <span class="hide-mobile">Kembali</span></button>
+    <button class="btn btn-secondary" onclick="previewCurrent()">👁 <span class="hide-mobile">Preview</span></button>
+    <button class="btn btn-primary" onclick="saveMeeting()">💾 <span class="hide-mobile">Simpan</span></button>`;
+}
+
+function renderForm(){ renderFormTopbar(); renderSidebarList(); updateLPPanel(); renderTabContent(); }
+
+function renderTabContent(){
+  const panel=document.getElementById('editorPanel'); if(!panel)return;
+  let body='';
+  if(activeTab==='minutes') body=tabMinutes();
+  if(activeTab==='attendance') body=tabAttendance();
+  if(activeTab==='docs') body=tabDocs();
+  panel.innerHTML=`<div class="fade-up"><div class="tabs">
+    <button class="tab ${activeTab==='minutes'?'active':''}" onclick="switchTab('minutes')">📄 Hasil Rapat</button>
+    <button class="tab ${activeTab==='attendance'?'active':''}" onclick="switchTab('attendance')">👥 Daftar Hadir</button>
+    <button class="tab ${activeTab==='docs'?'active':''}" onclick="switchTab('docs')">🖼 Dokumentasi</button>
+  </div>${body}</div>`;
+  panel.querySelectorAll('input,select,textarea').forEach(el=>el.addEventListener('input',scheduleLP));
+  panel.querySelectorAll('.rich-editor').forEach(el=>el.addEventListener('input',scheduleLP));
+  if(lpOpen) scheduleLP();
+}
+
+function switchTab(t){ collectFormData(); if(activeTab==='attendance')collectAttendance(); activeTab=t; renderTabContent(); }
+function collectFormData(){ ['judul','tanggal','waktu','waktu_selesai','tempat','pimpinan','notulis','perihal'].forEach(f=>{ const el=document.getElementById('f_'+f); if(el)draft[f]=el.value; }); }
+function collectAttendance(){ document.querySelectorAll('#peserta-tbody tr').forEach((row,i)=>{ const ins=row.querySelectorAll('input'); if(draft.peserta[i]){ draft.peserta[i].nama=ins[0]?.value||''; draft.peserta[i].jabatan=ins[1]?.value||''; draft.peserta[i].instansi=ins[2]?.value||''; } }); }
+
+function snapshotDraft(){
+  const tmp=JSON.parse(JSON.stringify(draft));
+  ['judul','tanggal','waktu','waktu_selesai','tempat','pimpinan','notulis','perihal'].forEach(f=>{ const el=document.getElementById('f_'+f); if(el)tmp[f]=el.value; });
+  document.querySelectorAll('#peserta-tbody tr').forEach((row,i)=>{ const ins=row.querySelectorAll('input'); if(tmp.peserta[i]){ tmp.peserta[i].nama=ins[0]?.value||tmp.peserta[i].nama||''; tmp.peserta[i].jabatan=ins[1]?.value||tmp.peserta[i].jabatan||''; tmp.peserta[i].instansi=ins[2]?.value||tmp.peserta[i].instansi||''; } });
+  return tmp;
+}
+
+/* ── Tab: Minutes ── */
+function tabMinutes(){
+  return `<div class="card"><div class="card-header"><div class="card-title">📋 Informasi Rapat</div></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Judul Rapat</label><input id="f_judul" type="text" placeholder="Contoh: Rapat Koordinasi Q1 2025" value="${esc(draft.judul)}"></div>
+      <div class="form-group"><label>Tanggal</label><input id="f_tanggal" type="date" value="${esc(draft.tanggal)}"></div>
+      <div class="form-group" style="grid-column: span 2;">
+        <label>Waktu Rapat</label>
+        <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center;">
+          <input id="f_waktu" type="time" value="${esc(draft.waktu)}" style="width: 100%;">
+          <span style="color: var(--text-dim); font-size: 14px; font-weight: 500;">s/d</span>
+          <input id="f_waktu_selesai" type="time" value="${esc(draft.waktu_selesai)}" style="width: 100%;">
+        </div>
+      </div>
+      <div class="form-group"><label>Tempat / Lokasi</label><input id="f_tempat" type="text" placeholder="Ruang Rapat Lantai 3" value="${esc(draft.tempat)}"></div>
+      <div class="form-group"><label>Perihal</label><input id="f_perihal" type="text" placeholder="Perihal rapat" value="${esc(draft.perihal)}"></div>
+      <div class="form-group"><label>Pimpinan Rapat</label><input id="f_pimpinan" type="text" placeholder="Nama pimpinan" value="${esc(draft.pimpinan)}"></div>
+      <div class="form-group"><label>Notulis</label><input id="f_notulis" type="text" placeholder="Nama notulis" value="${esc(draft.notulis)}"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">📝 Hasil Rapat <span class="badge badge-blue">${draft.points.length} Poin</span></div>
+      <button class="btn btn-primary btn-sm" onclick="openAddPoint()">＋ Tambah Poin</button>
+    </div>
+    <div id="points-area">
+      ${!draft.points.length
+        ? `<div style="text-align:center;padding:32px;color:var(--text-dim)"><div style="font-size:28px;margin-bottom:8px">📑</div><div style="font-size:13px">Klik <strong>Tambah Poin</strong> untuk menambahkan hasil rapat</div></div>`
+        : `<table class="points-table"><thead><tr><th class="num-cell">No</th><th>Poin Rapat</th><th>Penjelasan</th><th class="act-cell">Aksi</th></tr></thead><tbody>
+          ${draft.points.map((p,i)=>`<tr><td class="num-cell">${i+1}</td><td><div class="p-poin">${esc(p.poin)}</div></td><td><div class="p-desc">${p.penjelasan||'—'}</div></td>
+          <td class="act-cell" style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;padding-top:10px">
+            <button class="btn btn-secondary btn-sm" onclick="editPoint(${i})">✏</button>
+            <button class="btn btn-danger btn-sm" onclick="confirmDeletePoint(${i})">🗑</button>
+          </td></tr>`).join('')}
+        </tbody></table>`}
+    </div>
+    <div id="point-editor" style="display:none;margin-top:16px;padding:16px;background:var(--surface2);border-radius:10px;border:1px solid var(--border)">
+      <div style="font-weight:600;margin-bottom:12px;font-size:14px" id="pe-title">Tambah Poin</div>
+      <div class="form-group" style="margin-bottom:12px"><label>Poin Rapat</label><input id="pe_poin" type="text" placeholder="Contoh: Anggaran Proyek" oninput="scheduleLP()"></div>
+      <div class="form-group" style="margin-bottom:12px"><label>Penjelasan</label>${richEditor('pe_pen','')}</div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="cancelPoint()">Batal</button>
+        <button class="btn btn-primary" onclick="savePoint()">Simpan Poin</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function richEditor(id,val){
+  return `<div><div class="rich-toolbar">
+    <button title="Bold" onclick="fmt('bold')" onmousedown="return false"><b>B</b></button>
+    <button title="Italic" onclick="fmt('italic')" onmousedown="return false"><i>I</i></button>
+    <button title="Underline" onclick="fmt('underline')" onmousedown="return false"><u>U</u></button>
+    <button title="Strikethrough" onclick="fmt('strikeThrough')" onmousedown="return false"><s>S</s></button>
+    <div class="sep"></div>
+    <button title="Rata Kiri" onclick="fmt('justifyLeft')" onmousedown="return false">⬛≡</button>
+    <button title="Tengah" onclick="fmt('justifyCenter')" onmousedown="return false">≡≡</button>
+    <button title="Kanan" onclick="fmt('justifyRight')" onmousedown="return false">≡⬛</button>
+    <button title="Justify" onclick="fmt('justifyFull')" onmousedown="return false">▤</button>
+    <div class="sep"></div>
+    <button title="Bullet" onclick="fmt('insertUnorderedList')" onmousedown="return false">•—</button>
+    <button title="Angka" onclick="fmt('insertOrderedList')" onmousedown="return false">1—</button>
+    <div class="sep"></div>
+    <button onclick="sym('●')" onmousedown="return false">●</button>
+    <button onclick="sym('→')" onmousedown="return false">→</button>
+    <button onclick="sym('✓')" onmousedown="return false">✓</button>
+    <button onclick="sym('✗')" onmousedown="return false">✗</button>
+    <button onclick="sym('★')" onmousedown="return false">★</button>
+    <button onclick="sym('※')" onmousedown="return false">※</button>
+    <button onclick="sym('▶')" onmousedown="return false">▶</button>
+    <button onclick="sym('◆')" onmousedown="return false">◆</button>
+  </div><div class="rich-editor" id="${id}" contenteditable="true" oninput="scheduleLP()">${val}</div></div>`;
+}
+function fmt(cmd){ document.execCommand(cmd,false,null); }
+function sym(s){ document.execCommand('insertText',false,s); }
+
+function openAddPoint(){ editingPointIdx=null; document.getElementById('point-editor').style.display='block'; document.getElementById('pe-title').textContent='Tambah Poin Rapat'; document.getElementById('pe_poin').value=''; const ed=document.getElementById('pe_pen'); if(ed)ed.innerHTML=''; document.getElementById('pe_poin').focus(); }
+function editPoint(i){ editingPointIdx=i; const p=draft.points[i]; document.getElementById('point-editor').style.display='block'; document.getElementById('pe-title').textContent='Edit Poin Rapat'; document.getElementById('pe_poin').value=p.poin; const ed=document.getElementById('pe_pen'); if(ed)ed.innerHTML=p.penjelasan||''; document.getElementById('pe_poin').focus(); }
+function savePoint(){ const poin=document.getElementById('pe_poin').value.trim(); const ed=document.getElementById('pe_pen'); const pen=ed?ed.innerHTML.trim():''; if(!poin){toast('⚠ Poin harus diisi');return;} if(editingPointIdx!==null)draft.points[editingPointIdx]={poin,penjelasan:pen}; else draft.points.push({poin,penjelasan:pen}); document.getElementById('point-editor').style.display='none'; renderTabContent(); scheduleLP(); }
+function cancelPoint(){ document.getElementById('point-editor').style.display='none'; editingPointIdx=null; }
+
+/* ── Tab: Attendance ── */
+function tabAttendance(){
+  return `<div class="card"><div class="card-header"><div class="card-title">👥 Daftar Hadir <span class="badge badge-green">${draft.peserta.length} Orang</span></div><button class="btn btn-primary btn-sm" onclick="addPeserta()">＋ Tambah Peserta</button></div>
+    ${!draft.peserta.length
+      ? `<div style="text-align:center;padding:32px;color:var(--text-dim)"><div style="font-size:28px;margin-bottom:8px">👤</div><div style="font-size:13px">Klik <strong>Tambah Peserta</strong></div></div>`
+      : `<div style="overflow-x:auto"><table class="att-table"><thead><tr><th style="width:38px">No</th><th>Nama</th><th>Jabatan</th><th>Instansi / Unit</th><th style="width:52px"></th></tr></thead><tbody id="peserta-tbody">
+        ${draft.peserta.map((p,i)=>`<tr><td style="text-align:center;color:var(--accent);font-family:'DM Mono',monospace;font-size:12px">${i+1}</td>
+          <td><input class="att-inp" type="text" value="${esc(p.nama)}" placeholder="Nama" oninput="scheduleLP()"></td>
+          <td><input class="att-inp" type="text" value="${esc(p.jabatan)}" placeholder="Jabatan" oninput="scheduleLP()"></td>
+          <td><input class="att-inp" type="text" value="${esc(p.instansi)}" placeholder="Instansi" oninput="scheduleLP()"></td>
+          <td><button class="btn btn-danger btn-sm" onclick="confirmDeletePeserta(${i})">🗑</button></td>
+        </tr>`).join('')}
+      </tbody></table></div>`}
+  </div>`;
+}
+function addPeserta(){ collectAttendance(); draft.peserta.push({nama:'',jabatan:'',instansi:''}); renderTabContent(); setTimeout(()=>{ const rows=document.querySelectorAll('#peserta-tbody tr'); if(rows.length)rows[rows.length-1].querySelector('input')?.focus(); },60); }
+
+/* ── Tab: Docs ── */
+function tabDocs(){
+  const items=draft.dokumen.map((d,i)=>`<div>
+    <div class="doc-item">
+      <img src="${d.src}" alt="dok${i}" loading="lazy">
+      <button class="doc-remove" onclick="confirmRemoveDoc(${i})">✕</button>
+    </div>
+    <input class="cap-inp" type="text" placeholder="Keterangan foto..." value="${esc(d.caption||'')}" onchange="draft.dokumen[${i}].caption=this.value;scheduleLP()">
+  </div>`).join('');
+  return `<div class="card"><div class="card-header"><div class="card-title">🖼 Dokumentasi <span class="badge badge-gold">${draft.dokumen.length} Foto</span></div><button class="btn btn-secondary btn-sm" onclick="document.getElementById('doc-up').click()">+ Unggah Foto</button></div>
+    <input type="file" id="doc-up" accept="image/*" multiple style="display:none" onchange="handleDocs(this)">
+    <div class="doc-grid">${items}<div class="doc-placeholder" onclick="document.getElementById('doc-up').click()"><div style="font-size:22px">📷</div><div>Klik untuk unggah</div></div></div>
+  </div>`;
+}
+function handleDocs(input){ const files=Array.from(input.files); let loaded=0; files.forEach(file=>{ const r=new FileReader(); r.onload=e=>{ draft.dokumen.push({src:e.target.result,caption:''}); if(++loaded===files.length){renderTabContent();scheduleLP();} }; r.readAsDataURL(file); }); input.value=''; }
+
+/* ═══════ SAVE ═══════ */
+function saveMeeting(){
+  collectFormData(); if(activeTab==='attendance')collectAttendance();
+  if(!draft.judul.trim()){toast('⚠ Judul rapat harus diisi');return;}
+  if(!draft.tanggal){toast('⚠ Tanggal rapat harus diisi');return;}
+  if(!draft.id){ draft.id=uid(); meetings.push({...draft}); }
+  else { const idx=meetings.findIndex(m=>m.id===draft.id); if(idx>=0)meetings[idx]={...draft}; }
+  currentMeetingId=draft.id; save(); toast('✅ Rapat berhasil disimpan!'); renderSidebarList();
+  document.getElementById('topTitle').textContent='Edit Rapat';
+}
+
+/* ═══════ PREVIEW MODAL ═══════ */
+function previewCurrent(){ collectFormData(); if(activeTab==='attendance')collectAttendance(); buildPreview(snapshotDraft()); }
+function previewMeeting(id){ const m=meetings.find(x=>x.id===id); if(m)buildPreview(m); }
+function buildPreview(m){
+  const c=document.getElementById('pdf-preview-container'); c.innerHTML='';
+  c.appendChild(buildPage1(m)); c.appendChild(buildPage2(m));
+  if(m.dokumen?.length)c.appendChild(buildPage3(m));
+  document.getElementById('previewModal').style.display='flex';
+  document.getElementById('previewModal')._m=m;
+}
+function closePreview(){ document.getElementById('previewModal').style.display='none'; }
+
+/* ═══════ PAGE BUILDERS ═══════ */
+function hdr(m,docType,pn,tot){
+  return `<div class="pdf-header">
+    <div><div class="pdf-logo-text">Notulen Rapat</div><div class="pdf-doc-type">${docType}</div></div>
+    <div class="pdf-header-right"><div><strong>${esc(m.judul||'Rapat')}</strong></div><div>${m.tanggal?formatDate(m.tanggal):'—'}</div><div style="margin-top:3px;color:#aab0c4">Halaman ${pn} dari ${tot}</div></div>
+  </div>`;
+}
+
+function buildPage1(m){
+  const div=document.createElement('div'); div.className='a4-page';
+  const tot=m.dokumen?.length?3:2;
+  const rows=(m.points||[]).map((p,i)=>`<tr><td class="nc">${i+1}</td><td class="pc">${esc(p.poin)}</td><td>${p.penjelasan||'—'}</td></tr>`).join('');
+  div.innerHTML=`${hdr(m,'Minutes of Meeting',1,tot)}
+    <div class="pdf-title">${esc(m.judul||'Notulen Rapat')}</div>
+    <div class="pdf-meta-grid">
+      <div><div class="pdf-meta-label">Tanggal</div><div class="pdf-meta-value">${m.tanggal?formatDate(m.tanggal):'—'}</div></div>
+      <div><div class="pdf-meta-label">Waktu</div><div class="pdf-meta-value">${m.waktu||'—'}${m.waktu_selesai?' – '+m.waktu_selesai:''}</div></div>
+      <div><div class="pdf-meta-label">Tempat</div><div class="pdf-meta-value">${esc(m.tempat||'—')}</div></div>
+      <div><div class="pdf-meta-label">Perihal</div><div class="pdf-meta-value">${esc(m.perihal||'—')}</div></div>
+      <div><div class="pdf-meta-label">Pimpinan Rapat</div><div class="pdf-meta-value">${esc(m.pimpinan||'—')}</div></div>
+      <div><div class="pdf-meta-label">Notulis</div><div class="pdf-meta-value">${esc(m.notulis||'—')}</div></div>
+    </div>
+    <div class="pdf-sec-title">Hasil Rapat</div>
+    <table class="pdf-tbl"><thead><tr><th class="nc">No</th><th>Poin Rapat</th><th>Penjelasan</th></tr></thead>
+    <tbody>${rows||'<tr><td class="nc">—</td><td colspan="2" style="color:#b0b8cc">Tidak ada poin rapat</td></tr>'}</tbody></table>
+    <div style="margin-top:34px;display:flex;justify-content:space-between;gap:18px">
+      <div class="sig-box"><div class="sig-name">${esc(m.pimpinan||'________________')}</div><div class="sig-role">Pimpinan Rapat</div></div>
+      <div class="sig-box"><div class="sig-name">${esc(m.notulis||'________________')}</div><div class="sig-role">Notulis</div></div>
+    </div>
+    <div class="pdf-page-num">— Halaman 1 dari ${tot} —</div><div class="pdf-footer-bar"></div>`;
+  applyDocFonts(div);
+  return div;
+}
+
+function buildPage2(m){
+  const div=document.createElement('div'); div.className='a4-page';
+  const tot=m.dokumen?.length?3:2;
+  const rows=(m.peserta||[]).map((p,i)=>`<tr><td style="text-align:center;color:#4f7cff;font-weight:700">${i+1}</td><td>${esc(p.nama||'—')}</td><td>${esc(p.jabatan||'—')}</td><td>${esc(p.instansi||'—')}</td><td style="text-align:center">___________</td></tr>`).join('');
+  const empty=Array.from({length:Math.max(0,15-(m.peserta||[]).length)}).map((_,i)=>`<tr style="height:29px"><td style="text-align:center;color:#c5cfe8">${(m.peserta||[]).length+i+1}</td><td></td><td></td><td></td><td></td></tr>`).join('');
+  div.innerHTML=`${hdr(m,'Daftar Hadir',2,tot)}
+    <div class="pdf-title" style="margin-bottom:6px">Daftar Hadir Peserta Rapat</div>
+    <div style="font-size:11px;color:#7c8497;margin-bottom:19px">Rapat: <strong>${esc(m.judul||'—')}</strong> &nbsp;|&nbsp; Tanggal: <strong>${m.tanggal?formatDate(m.tanggal):'—'}</strong> &nbsp;|&nbsp; Tempat: <strong>${esc(m.tempat||'—')}</strong></div>
+    <div class="pdf-sec-title">Data Peserta & Tanda Tangan</div>
+    <table class="pdf-att-tbl"><thead><tr><th style="width:36px">No</th><th>Nama</th><th>Jabatan</th><th>Instansi / Unit</th><th style="width:106px;text-align:center">Tanda Tangan</th></tr></thead>
+    <tbody>${rows||'<tr><td colspan="5" style="color:#b0b8cc;padding:16px;text-align:center">Belum ada peserta</td></tr>'}${empty}</tbody></table>
+    <div class="pdf-page-num">— Halaman 2 dari ${tot} —</div><div class="pdf-footer-bar"></div>`;
+  applyDocFonts(div);
+  return div;
+}
+
+function buildPage3(m){
+  const div=document.createElement('div'); div.className='a4-page';
+  const cells=(m.dokumen||[]).map((d,i)=>`<div class="pdf-doc-cell"><img src="${d.src}" alt="Dok${i+1}" loading="lazy"><div class="pdf-doc-caption">${esc(d.caption||'Dokumentasi '+(i+1))}</div></div>`).join('');
+  div.innerHTML=`${hdr(m,'Dokumentasi',3,3)}
+    <div class="pdf-title" style="margin-bottom:6px">Dokumentasi Rapat</div>
+    <div style="font-size:11px;color:#7c8497;margin-bottom:19px">Rapat: <strong>${esc(m.judul||'—')}</strong> &nbsp;|&nbsp; Tanggal: <strong>${m.tanggal?formatDate(m.tanggal):'—'}</strong></div>
+    <div class="pdf-sec-title">Foto Dokumentasi</div>
+    <div class="pdf-doc-grid">${cells}</div>
+    <div class="pdf-page-num">— Halaman 3 dari 3 —</div><div class="pdf-footer-bar"></div>`;
+  applyDocFonts(div);
+  return div;
+}
+
+/* ═══════ PDF DOWNLOAD ═══════ */
+async function downloadPDF(){
+  const m=document.getElementById('previewModal')._m; if(!m)return;
+  const btn=document.getElementById('dlBtn'); const orig=btn.innerHTML;
+  btn.innerHTML='<span class="spinner"></span> Memproses...'; btn.disabled=true;
+  toast('⏳ Membuat PDF A4...');
+
+  try {
+    // Build pages in the hidden off-screen surface (always 794px, never affected by responsive CSS)
+    const surface=document.getElementById('pdf-render-surface');
+    surface.innerHTML='';
+    surface.style.width='794px'; // ensure container is wide enough
+
+    const pageNodes=[];
+    [buildPage1(m),buildPage2(m),...(m.dokumen?.length?[buildPage3(m)]:[])].forEach(pg=>{
+      // Ensure no transform/scale override from LP zoom
+      pg.style.transform='none';
+      pg.style.width='794px';
+      pg.style.minHeight='1123px';
+      pg.style.fontSize='12px';
+      pg.style.padding='56px 56px 76px';
+      pg.style.margin='0 0 20px 0';
+      surface.appendChild(pg);
+      pageNodes.push(pg);
+    });
+
+    const {jsPDF}=window.jspdf;
+    const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+
+    for(let i=0;i<pageNodes.length;i++){
+      const canvas=await html2canvas(pageNodes[i],{
+        scale:2,               // 2× for crisp 150dpi equivalent
+        useCORS:true,
+        allowTaint:true,
+        backgroundColor:'#ffffff',
+        logging:false,
+        width:794,
+        height:1123,
+        windowWidth:794,
+      });
+      const img=canvas.toDataURL('image/jpeg',0.95);
+      if(i>0)pdf.addPage('a4','portrait');
+      pdf.addImage(img,'JPEG',0,0,210,297); // exact A4 in mm
+    }
+
+    surface.innerHTML=''; // cleanup
+    const fn=(m.judul||'rapat').replace(/[^a-z0-9\s]/gi,'').replace(/\s+/g,'_').slice(0,40);
+    pdf.save(`${fn}_${m.tanggal||'notulen'}.pdf`);
+    toast('✅ PDF A4 berhasil didownload!');
+  } catch(e){ toast('❌ Gagal: '+e.message); console.error(e); }
+
+  btn.innerHTML=orig; btn.disabled=false;
+}
+
+/* ═══════ FONT SYSTEM ═══════ */
+const HEADING_FONTS = [
+  { name:'Playfair Display', label:'Playfair Display', category:'serif' },
+  { name:'EB Garamond',       label:'EB Garamond',       category:'serif' },
+  { name:'Merriweather',      label:'Merriweather',      category:'serif' },
+  { name:'Source Serif 4',    label:'Source Serif 4',    category:'serif' },
+  { name:'Libre Baskerville', label:'Libre Baskerville', category:'serif' },
+  { name:'Crimson Text',      label:'Crimson Text',      category:'serif' },
+  { name:'Poppins',           label:'Poppins',           category:'sans' },
+  { name:'Raleway',           label:'Raleway',           category:'sans' },
+  { name:'Nunito',            label:'Nunito',            category:'sans' },
+  { name:'Lato',              label:'Lato',              category:'sans' },
+];
+
+const BODY_FONTS = [
+  { name:'DM Sans',      label:'DM Sans',      category:'sans' },
+  { name:'Inter',        label:'Inter',        category:'sans' },
+  { name:'Open Sans',    label:'Open Sans',    category:'sans' },
+  { name:'Roboto',       label:'Roboto',       category:'sans' },
+  { name:'Lato',         label:'Lato',         category:'sans' },
+  { name:'Poppins',      label:'Poppins',      category:'sans' },
+  { name:'Nunito',       label:'Nunito',       category:'sans' },
+  { name:'Merriweather', label:'Merriweather', category:'serif' },
+  { name:'Source Serif 4',label:'Source Serif 4',category:'serif'},
+  { name:'Crimson Text', label:'Crimson Text', category:'serif' },
+];
+
+// Active selections (temporary, before Apply)
+let tempHeadingFont = null;
+let tempBodyFont    = null;
+let tempFontSize    = null;
+
+// Applied (used in PDF pages)
+let docHeadingFont = localStorage.getItem('meetpro_hfont') || 'Playfair Display';
+let docBodyFont    = localStorage.getItem('meetpro_bfont') || 'DM Sans';
+let docFontSize    = parseInt(localStorage.getItem('meetpro_fsize') || '12');
+
+function openFontModal(){
+  tempHeadingFont = docHeadingFont;
+  tempBodyFont    = docBodyFont;
+  tempFontSize    = docFontSize;
+  renderFontModal();
+  document.getElementById('fontModal').style.display='flex';
+}
+
+function closeFontModal(){ document.getElementById('fontModal').style.display='none'; }
+
+function renderFontModal(){
+  // Heading grid
+  document.getElementById('headingFontGrid').innerHTML = HEADING_FONTS.map(f=>`
+    <div class="font-card ${tempHeadingFont===f.name?'selected':''}" onclick="selectHeadingFont('${f.name}')">
+      <div class="font-card-name">${f.label}</div>
+      <div class="font-card-preview" style="font-family:'${f.name}',serif">Judul Rapat</div>
+    </div>`).join('');
+
+  // Body grid
+  document.getElementById('bodyFontGrid').innerHTML = BODY_FONTS.map(f=>`
+    <div class="font-card ${tempBodyFont===f.name?'selected':''}" onclick="selectBodyFont('${f.name}')">
+      <div class="font-card-name">${f.label}</div>
+      <div class="font-card-preview" style="font-family:'${f.name}',sans-serif;font-size:13px">Teks isi rapat</div>
+    </div>`).join('');
+
+  updateFontSizeDisplay();
+  updateFontPreviewBox();
+}
+
+function selectHeadingFont(name){
+  tempHeadingFont=name;
+  document.querySelectorAll('#headingFontGrid .font-card').forEach((el,i)=>{
+    el.classList.toggle('selected', HEADING_FONTS[i].name===name);
+  });
+  updateFontPreviewBox();
+}
+
+function selectBodyFont(name){
+  tempBodyFont=name;
+  document.querySelectorAll('#bodyFontGrid .font-card').forEach((el,i)=>{
+    el.classList.toggle('selected', BODY_FONTS[i].name===name);
+  });
+  updateFontPreviewBox();
+}
+
+function changeFontSize(delta){
+  tempFontSize = Math.max(9, Math.min(16, tempFontSize+delta));
+  updateFontSizeDisplay();
+  updateFontPreviewBox();
+}
+
+function updateFontSizeDisplay(){
+  document.getElementById('fontSizeDisplay').textContent = tempFontSize+'px';
+}
+
+function updateFontPreviewBox(){
+  const h=document.getElementById('previewHeading');
+  const b=document.getElementById('previewBody');
+  if(h){ h.style.fontFamily=`'${tempHeadingFont}',serif`; h.style.fontSize=(tempFontSize+6)+'px'; }
+  if(b){ b.style.fontFamily=`'${tempBodyFont}',sans-serif`; b.style.fontSize=tempFontSize+'px'; }
+}
+
+function applyFonts(){
+  docHeadingFont = tempHeadingFont;
+  docBodyFont    = tempBodyFont;
+  docFontSize    = tempFontSize;
+  localStorage.setItem('meetpro_hfont', docHeadingFont);
+  localStorage.setItem('meetpro_bfont', docBodyFont);
+  localStorage.setItem('meetpro_fsize', docFontSize);
+  closeFontModal();
+  toast('✅ Font dokumen diterapkan!');
+  rerenderTopbar(); // update font name in button
+  if(lpOpen) scheduleLP();
+}
+
+function resetFonts(){
+  tempHeadingFont='Playfair Display';
+  tempBodyFont='DM Sans';
+  tempFontSize=12;
+  renderFontModal();
+}
+
+// Inject font family into a page element
+function applyDocFonts(pageEl){
+  pageEl.style.fontFamily = `'${docBodyFont}',sans-serif`;
+  pageEl.style.fontSize   = docFontSize+'px';
+  // headings inside the page
+  pageEl.querySelectorAll('.pdf-logo-text,.pdf-title,.font-heading').forEach(el=>{
+    el.style.fontFamily=`'${docHeadingFont}',serif`;
+  });
+  pageEl.querySelectorAll('.pdf-tbl,.pdf-att-tbl,.pdf-meta-grid,.pdf-sec-title,.pdf-header-right,.pdf-doc-caption,.pdf-page-num').forEach(el=>{
+    el.style.fontFamily=`'${docBodyFont}',sans-serif`;
+    if(!el.classList.contains('pdf-sec-title')&&!el.classList.contains('pdf-logo-text')) el.style.fontSize=docFontSize+'px';
+  });
+}
+
+/* ═══════ INIT ═══════ */
+applyTheme(theme);
+renderList();
+</script>
+</body>
+</html>
