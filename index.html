@@ -325,6 +325,7 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
   .topbar{padding:11px 14px;}
   .form-grid{grid-template-columns:1fr;}
   .form-group.full{grid-column:1;}
+  .form-group.full > div[style*="grid-template-columns"]{grid-template-columns:1fr !important;}
   .hide-mobile{display:none !important;}
   /* PDF modal: horizontally scrollable on mobile */
   .modal{border-radius:10px;}
@@ -707,11 +708,10 @@ function tabMinutes(){
   return `<div class="card"><div class="card-header"><div class="card-title">📋 Informasi Rapat</div></div>
     <div class="form-grid">
       <div class="form-group full"><label>Judul Rapat</label><input id="f_judul" type="text" placeholder="Contoh: Rapat Koordinasi Q1 2025" value="${esc(draft.judul)}"></div>
-      <div class="form-group"><label>Tanggal</label><input id="f_tanggal" type="date" value="${esc(draft.tanggal)}"></div>
-      <div class="form-group" style="display:flex;gap:10px;align-items:flex-end">
-        <div style="flex:1"><label>Waktu Mulai</label><input id="f_waktu" type="time" value="${esc(draft.waktu)}"></div>
-        <div style="align-self:center;color:var(--text-dim);font-size:18px;padding-bottom:2px">→</div>
-        <div style="flex:1"><label>Waktu Selesai</label><input id="f_waktu_selesai" type="time" value="${esc(draft.waktu_selesai)}"></div>
+      <div class="form-group full" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:end">
+        <div class="form-group" style="margin:0"><label>Tanggal</label><input id="f_tanggal" type="date" value="${esc(draft.tanggal)}"></div>
+        <div class="form-group" style="margin:0"><label>Waktu Mulai</label><input id="f_waktu" type="time" value="${esc(draft.waktu)}"></div>
+        <div class="form-group" style="margin:0"><label>Waktu Selesai</label><input id="f_waktu_selesai" type="time" value="${esc(draft.waktu_selesai)}"></div>
       </div>
       <div class="form-group"><label>Tempat / Lokasi</label><input id="f_tempat" type="text" placeholder="Ruang Rapat Lantai 3" value="${esc(draft.tempat)}"></div>
       <div class="form-group"><label>Perihal</label><input id="f_perihal" type="text" placeholder="Perihal rapat" value="${esc(draft.perihal)}"></div>
