@@ -225,17 +225,18 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
 .modal-close{width:30px;height:30px;background:var(--surface2);border:1px solid var(--border);border-radius:50%;cursor:pointer;color:var(--text);font-size:15px;display:flex;align-items:center;justify-content:center;}
 .modal-close:hover{background:var(--border);}
 
-/* ── PDF RENDER AREA (always 794px, scrollable in modal) ── */
+/* ── PDF RENDER AREA ── */
 #pdf-preview-container{background:#a8afc2;padding:24px;overflow-x:auto;}
-/* TRUE A4 page — never shrinks for layout. Scaled by browser zoom only */
+/* A4 page — width always 794px, height flows with content */
 .a4-page{
-  width:794px;min-height:1123px;background:#fff;
+  width:794px;background:#fff;
   margin:0 auto 18px;padding:56px 56px 76px;
   color:#1a1e2d;font-family:'DM Sans',sans-serif;font-size:12px;line-height:1.6;
   position:relative;box-shadow:0 4px 22px rgba(0,0,0,.3);
-  /* Never let responsive CSS shrink this */
-  flex-shrink:0;
+  /* min-height removed — height is content-driven */
 }
+/* content area inside each page — let it grow */
+.a4-page .page-content{}
 .pdf-header{display:flex;align-items:flex-start;justify-content:space-between;padding-bottom:17px;border-bottom:3px solid #1a1e2d;margin-bottom:24px;}
 .pdf-logo-text{font-family:'Playfair Display',serif;font-size:24px;font-weight:700;color:#1a1e2d;}
 .pdf-doc-type{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#7c8497;margin-top:2px;}
@@ -632,9 +633,11 @@ function refreshLP(){
   if(!lpOpen)return;
   const scroll=document.getElementById('lpScroll'); if(!scroll)return;
   const tmp=snapshotDraft(); scroll.innerHTML='';
-  const addWrap=page=>{ const w=document.createElement('div'); w.className='lp-page-wrap'; w.appendChild(page); scroll.appendChild(w); };
-  addWrap(buildPage1(tmp)); addWrap(buildPage2(tmp));
-  if(tmp.dokumen?.length) addWrap(buildPage3(tmp));
+  const pages=buildAllPages(tmp);
+  pages.forEach(page=>{
+    const w=document.createElement('div'); w.className='lp-page-wrap';
+    w.appendChild(page); scroll.appendChild(w);
+  });
   applyLPZoom();
 }
 
@@ -703,15 +706,12 @@ function snapshotDraft(){
 function tabMinutes(){
   return `<div class="card"><div class="card-header"><div class="card-title">📋 Informasi Rapat</div></div>
     <div class="form-grid">
-      <div class="form-group"><label>Judul Rapat</label><input id="f_judul" type="text" placeholder="Contoh: Rapat Koordinasi Q1 2025" value="${esc(draft.judul)}"></div>
+      <div class="form-group full"><label>Judul Rapat</label><input id="f_judul" type="text" placeholder="Contoh: Rapat Koordinasi Q1 2025" value="${esc(draft.judul)}"></div>
       <div class="form-group"><label>Tanggal</label><input id="f_tanggal" type="date" value="${esc(draft.tanggal)}"></div>
-      <div class="form-group" style="grid-column: span 2;">
-        <label>Waktu Rapat</label>
-        <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center;">
-          <input id="f_waktu" type="time" value="${esc(draft.waktu)}" style="width: 100%;">
-          <span style="color: var(--text-dim); font-size: 14px; font-weight: 500;">s/d</span>
-          <input id="f_waktu_selesai" type="time" value="${esc(draft.waktu_selesai)}" style="width: 100%;">
-        </div>
+      <div class="form-group" style="display:flex;gap:10px;align-items:flex-end">
+        <div style="flex:1"><label>Waktu Mulai</label><input id="f_waktu" type="time" value="${esc(draft.waktu)}"></div>
+        <div style="align-self:center;color:var(--text-dim);font-size:18px;padding-bottom:2px">→</div>
+        <div style="flex:1"><label>Waktu Selesai</label><input id="f_waktu_selesai" type="time" value="${esc(draft.waktu_selesai)}"></div>
       </div>
       <div class="form-group"><label>Tempat / Lokasi</label><input id="f_tempat" type="text" placeholder="Ruang Rapat Lantai 3" value="${esc(draft.tempat)}"></div>
       <div class="form-group"><label>Perihal</label><input id="f_perihal" type="text" placeholder="Perihal rapat" value="${esc(draft.perihal)}"></div>
@@ -811,7 +811,37 @@ function tabDocs(){
     <div class="doc-grid">${items}<div class="doc-placeholder" onclick="document.getElementById('doc-up').click()"><div style="font-size:22px">📷</div><div>Klik untuk unggah</div></div></div>
   </div>`;
 }
-function handleDocs(input){ const files=Array.from(input.files); let loaded=0; files.forEach(file=>{ const r=new FileReader(); r.onload=e=>{ draft.dokumen.push({src:e.target.result,caption:''}); if(++loaded===files.length){renderTabContent();scheduleLP();} }; r.readAsDataURL(file); }); input.value=''; }
+function compressImage(file, maxW=1200, maxH=1200, quality=0.72){
+  return new Promise(resolve=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        let w=img.width, h=img.height;
+        const ratio=Math.min(1, maxW/w, maxH/h);
+        w=Math.round(w*ratio); h=Math.round(h*ratio);
+        const canvas=document.createElement('canvas');
+        canvas.width=w; canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleDocs(input){
+  const files=Array.from(input.files);
+  let loaded=0;
+  for(const file of files){
+    const src=await compressImage(file);
+    draft.dokumen.push({src,caption:''});
+    loaded++;
+    if(loaded===files.length){renderTabContent();scheduleLP();}
+  }
+  input.value='';
+}
 
 /* ═══════ SAVE ═══════ */
 function saveMeeting(){
@@ -827,28 +857,114 @@ function saveMeeting(){
 /* ═══════ PREVIEW MODAL ═══════ */
 function previewCurrent(){ collectFormData(); if(activeTab==='attendance')collectAttendance(); buildPreview(snapshotDraft()); }
 function previewMeeting(id){ const m=meetings.find(x=>x.id===id); if(m)buildPreview(m); }
+
 function buildPreview(m){
-  const c=document.getElementById('pdf-preview-container'); c.innerHTML='';
-  c.appendChild(buildPage1(m)); c.appendChild(buildPage2(m));
-  if(m.dokumen?.length)c.appendChild(buildPage3(m));
+  const c=document.getElementById('pdf-preview-container');
+  c.innerHTML='<div style="text-align:center;padding:40px;color:#7c8497;font-family:DM Sans,sans-serif"><div style="font-size:24px;margin-bottom:8px">⏳</div>Membangun halaman...</div>';
   document.getElementById('previewModal').style.display='flex';
   document.getElementById('previewModal')._m=m;
+  // defer so modal renders first
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    c.innerHTML='';
+    buildAllPages(m).forEach(pg=>c.appendChild(pg));
+  }));
 }
 function closePreview(){ document.getElementById('previewModal').style.display='none'; }
 
-/* ═══════ PAGE BUILDERS ═══════ */
-function hdr(m,docType,pn,tot){
+/* ═══════ PAGE SYSTEM ═══════ */
+
+// A4 inner content width = 794 - 56*2 = 682px
+// A4 inner content height = 1123 - 56(top) - 76(bot) = 991px
+// We leave ~60px for header and ~40px for footer label = 891px safe content
+const A4W  = 794;   // total page width px
+const A4H  = 1123;  // total page height px  
+const PAD  = 56;    // horizontal & top padding
+const PBOT = 76;    // bottom padding (more room for footer bar)
+const HDR_H= 65;    // approximate header height (logo bar)
+const FTR_H= 36;    // footer page-num + bar
+const SAFE_H = A4H - PAD - PBOT - HDR_H - FTR_H; // ~906px usable per page
+
+// Hidden measurement iframe — same width as A4, isolated from app CSS
+let _measureBox = null;
+function getMeasureBox(){
+  if(_measureBox && document.body.contains(_measureBox)) return _measureBox;
+  const d=document.createElement('div');
+  d.style.cssText=`position:fixed;left:-9999px;top:0;width:${A4W-PAD*2}px;`+
+    `background:#fff;color:#1a1e2d;font-size:${docFontSize}px;`+
+    `font-family:'${docBodyFont}',sans-serif;line-height:1.6;`+
+    `visibility:hidden;pointer-events:none;z-index:-1;padding:0;margin:0;`;
+  document.body.appendChild(d);
+  _measureBox=d;
+  return d;
+}
+
+function measureHTML(html){
+  const b=getMeasureBox();
+  b.innerHTML=html;
+  // inject PDF table styles so measurements are accurate
+  b.querySelectorAll('.pdf-tbl').forEach(t=>{
+    t.style.width='100%'; t.style.borderCollapse='collapse'; t.style.fontSize=(docFontSize-1)+'px';
+  });
+  b.querySelectorAll('.pdf-att-tbl').forEach(t=>{
+    t.style.width='100%'; t.style.borderCollapse='collapse'; t.style.fontSize=(docFontSize-1)+'px';
+  });
+  return b.offsetHeight||b.scrollHeight;
+}
+
+function hdr(m, docType){
   return `<div class="pdf-header">
-    <div><div class="pdf-logo-text">Notulen Rapat</div><div class="pdf-doc-type">${docType}</div></div>
-    <div class="pdf-header-right"><div><strong>${esc(m.judul||'Rapat')}</strong></div><div>${m.tanggal?formatDate(m.tanggal):'—'}</div><div style="margin-top:3px;color:#aab0c4">Halaman ${pn} dari ${tot}</div></div>
+    <div>
+      <div class="pdf-logo-text">MeetPro</div>
+      <div class="pdf-doc-type">${docType}</div>
+    </div>
+    <div class="pdf-header-right">
+      <div><strong>${esc(m.judul||'Rapat')}</strong></div>
+      <div>${m.tanggal?formatDate(m.tanggal):'—'}</div>
+    </div>
   </div>`;
 }
 
-function buildPage1(m){
-  const div=document.createElement('div'); div.className='a4-page';
-  const tot=m.dokumen?.length?3:2;
-  const rows=(m.points||[]).map((p,i)=>`<tr><td class="nc">${i+1}</td><td class="pc">${esc(p.poin)}</td><td>${p.penjelasan||'—'}</td></tr>`).join('');
-  div.innerHTML=`${hdr(m,'Minutes of Meeting',1,tot)}
+function makePage(m, docType, content, pageNum, totalPages){
+  const div=document.createElement('div');
+  div.className='a4-page';
+  div.innerHTML=`
+    ${hdr(m,docType)}
+    <div class="page-content">${content}</div>
+    <div class="pdf-page-num">— Halaman ${pageNum} dari ${totalPages} —</div>
+    <div class="pdf-footer-bar"></div>`;
+  applyDocFonts(div);
+  return div;
+}
+
+/*
+  Core pagination engine.
+  Takes an array of "blocks" (HTML strings with known types),
+  measures each, bins them into A4 pages respecting SAFE_H.
+*/
+function paginateBlocks(blocks, measure){
+  // Each block: { html, tag:'header'|'row'|'rowgroup'|'free' }
+  // Returns array of arrays (pages of block html strings)
+  const pages=[];
+  let cur=[];
+  let used=0;
+
+  const flush=()=>{ if(cur.length){ pages.push(cur); cur=[]; used=0; } };
+
+  blocks.forEach(b=>{
+    const h=b.h!==undefined ? b.h : measureHTML(b.html);
+    if(used>0 && used+h > SAFE_H){ flush(); }
+    cur.push(b.html);
+    used+=h;
+  });
+  flush();
+  return pages;
+}
+
+function buildAllPages(m){
+  const allDefs=[]; // {label, contentHTML}
+
+  // ─── MINUTES ──────────────────────────────────────────
+  const metaHTML=`
     <div class="pdf-title">${esc(m.judul||'Notulen Rapat')}</div>
     <div class="pdf-meta-grid">
       <div><div class="pdf-meta-label">Tanggal</div><div class="pdf-meta-value">${m.tanggal?formatDate(m.tanggal):'—'}</div></div>
@@ -857,98 +973,227 @@ function buildPage1(m){
       <div><div class="pdf-meta-label">Perihal</div><div class="pdf-meta-value">${esc(m.perihal||'—')}</div></div>
       <div><div class="pdf-meta-label">Pimpinan Rapat</div><div class="pdf-meta-value">${esc(m.pimpinan||'—')}</div></div>
       <div><div class="pdf-meta-label">Notulis</div><div class="pdf-meta-value">${esc(m.notulis||'—')}</div></div>
-    </div>
-    <div class="pdf-sec-title">Hasil Rapat</div>
-    <table class="pdf-tbl"><thead><tr><th class="nc">No</th><th>Poin Rapat</th><th>Penjelasan</th></tr></thead>
-    <tbody>${rows||'<tr><td class="nc">—</td><td colspan="2" style="color:#b0b8cc">Tidak ada poin rapat</td></tr>'}</tbody></table>
-    <div style="margin-top:34px;display:flex;justify-content:space-between;gap:18px">
-      <div class="sig-box"><div class="sig-name">${esc(m.pimpinan||'________________')}</div><div class="sig-role">Pimpinan Rapat</div></div>
-      <div class="sig-box"><div class="sig-name">${esc(m.notulis||'________________')}</div><div class="sig-role">Notulis</div></div>
-    </div>
-    <div class="pdf-page-num">— Halaman 1 dari ${tot} —</div><div class="pdf-footer-bar"></div>`;
-  applyDocFonts(div);
-  return div;
+    </div>`;
+
+  const tblHeadHTML=`<div class="pdf-sec-title">Hasil Rapat</div>
+    <table class="pdf-tbl"><thead><tr>
+      <th class="nc">No</th><th>Poin Rapat</th><th>Penjelasan</th>
+    </tr></thead><tbody>`;
+  const tblFootHTML=`</tbody></table>`;
+
+  const sigHTML=`<div style="margin-top:34px;display:flex;justify-content:space-between;gap:18px">
+    <div class="sig-box"><div class="sig-name">${esc(m.pimpinan||'________________')}</div><div class="sig-role">Pimpinan Rapat</div></div>
+    <div class="sig-box"><div class="sig-name">${esc(m.notulis||'________________')}</div><div class="sig-role">Notulis</div></div>
+  </div>`;
+
+  // Measure preamble
+  const metaH=measureHTML(metaHTML);
+  const tblHeadH=measureHTML(tblHeadHTML+tblFootHTML);
+
+  // Measure each point row individually
+  const pointRows=(m.points||[]).map((p,i)=>{
+    const rowHTML=`<tr><td class="nc">${i+1}</td><td class="pc">${esc(p.poin)}</td><td>${p.penjelasan||'—'}</td></tr>`;
+    return {html:rowHTML, h:measureHTML(`<table class="pdf-tbl"><tbody>${rowHTML}</tbody></table>`)};
+  });
+
+  // Build pages for minutes
+  {
+    const sigH=measureHTML(sigHTML);
+    let pages=[]; // each page: array of rowHTML
+    let cur=[]; let used=metaH+tblHeadH; let first=true;
+
+    pointRows.forEach(row=>{
+      // on last row, we also need sigH
+      const extra=(cur.length===pointRows.length-1?sigH:0);
+      if(used+row.h+extra>SAFE_H && cur.length>0){
+        pages.push({rows:[...cur], first}); cur=[]; used=tblHeadH; first=false;
+      }
+      cur.push(row); used+=row.h;
+    });
+    pages.push({rows:cur, first: first && pages.length===0});
+    if(!pages.length) pages=[{rows:[],first:true}];
+
+    const totalMinutesPages=pages.length;
+    pages.forEach((pg,pi)=>{
+      const rowsHTML=pg.rows.map(r=>r.html).join('');
+      const emptyRow=pg.rows.length===0?`<tr><td class="nc">—</td><td colspan="2" style="color:#b0b8cc">Tidak ada poin rapat</td></tr>`:'';
+      const contLabel=totalMinutesPages>1&&pi>0?' <span style="font-weight:400;font-size:10px;color:#9aacbc">(lanjutan)</span>':'';
+      const secTitle=`<div class="pdf-sec-title">Hasil Rapat${contLabel}</div>`;
+      const tbl=`<table class="pdf-tbl"><thead><tr><th class="nc">No</th><th>Poin Rapat</th><th>Penjelasan</th></tr></thead><tbody>${rowsHTML||emptyRow}</tbody></table>`;
+      const content=(pi===0?metaHTML:'')+secTitle+tbl+(pi===totalMinutesPages-1?sigHTML:'');
+      allDefs.push({label:'Minutes of Meeting', content});
+    });
+  }
+
+  // ─── ATTENDANCE ───────────────────────────────────────
+  {
+    const preambleHTML=`
+      <div class="pdf-title" style="margin-bottom:6px">Daftar Hadir Peserta Rapat</div>
+      <div style="font-size:11px;color:#7c8497;margin-bottom:18px">
+        Rapat: <strong>${esc(m.judul||'—')}</strong> &nbsp;|&nbsp;
+        Tanggal: <strong>${m.tanggal?formatDate(m.tanggal):'—'}</strong> &nbsp;|&nbsp;
+        Tempat: <strong>${esc(m.tempat||'—')}</strong>
+      </div>`;
+    const attHeadHTML=`<div class="pdf-sec-title">Data Peserta &amp; Tanda Tangan</div>
+      <table class="pdf-att-tbl"><thead><tr>
+        <th style="width:36px">No</th><th>Nama</th><th>Jabatan</th><th>Instansi / Unit</th>
+        <th style="width:106px;text-align:center">Tanda Tangan</th>
+      </tr></thead><tbody>`;
+    const attFootHTML=`</tbody></table>`;
+
+    const preambleH=measureHTML(preambleHTML);
+    const attHeadH=measureHTML(attHeadHTML+attFootHTML);
+
+    const peserta=m.peserta||[];
+    const attRows=peserta.map((p,i)=>{
+      const rowHTML=`<tr><td style="text-align:center;color:#4f7cff;font-weight:700">${i+1}</td><td>${esc(p.nama||'—')}</td><td>${esc(p.jabatan||'—')}</td><td>${esc(p.instansi||'—')}</td><td style="text-align:center">___________</td></tr>`;
+      return {html:rowHTML, h:measureHTML(`<table class="pdf-att-tbl"><tbody>${rowHTML}</tbody></table>`)};
+    });
+    // fill empty rows up to 15 only on first page
+    const emptyCount=Math.max(0,15-peserta.length);
+    const emptyRowH=32; // approx
+    const emptyRowsHTML=Array.from({length:emptyCount}).map((_,i)=>`<tr style="height:${emptyRowH}px"><td style="text-align:center;color:#c5cfe8">${peserta.length+i+1}</td><td></td><td></td><td></td><td></td></tr>`).join('');
+
+    let pages=[]; let cur=[]; let used=preambleH+attHeadH; let first=true;
+    attRows.forEach(row=>{
+      if(used+row.h>SAFE_H && cur.length>0){
+        pages.push({rows:[...cur],first}); cur=[]; used=attHeadH; first=false;
+      }
+      cur.push(row); used+=row.h;
+    });
+    // add empty rows to last page if they fit
+    if(emptyCount>0 && used+emptyCount*emptyRowH<=SAFE_H) cur.push({html:emptyRowsHTML,h:emptyCount*emptyRowH});
+    pages.push({rows:cur,first:first&&pages.length===0});
+    if(!pages.length) pages=[{rows:[],first:true}];
+
+    const totalAttPages=pages.length;
+    pages.forEach((pg,pi)=>{
+      const rowsHTML=pg.rows.map(r=>r.html).join('');
+      const emptyRow=pg.rows.length===0?`<tr><td colspan="5" style="color:#b0b8cc;padding:16px;text-align:center">Belum ada peserta</td></tr>`:'';
+      const contLabel=totalAttPages>1&&pi>0?' <span style="font-weight:400;font-size:10px;color:#9aacbc">(lanjutan)</span>':'';
+      const secTitle=`<div class="pdf-sec-title">Data Peserta &amp; Tanda Tangan${contLabel}</div>`;
+      const tbl=`<table class="pdf-att-tbl"><thead><tr><th style="width:36px">No</th><th>Nama</th><th>Jabatan</th><th>Instansi / Unit</th><th style="width:106px;text-align:center">Tanda Tangan</th></tr></thead><tbody>${rowsHTML||emptyRow}</tbody></table>`;
+      const content=(pi===0?preambleHTML:'')+secTitle+tbl;
+      allDefs.push({label:'Daftar Hadir', content});
+    });
+  }
+
+  // ─── DOCUMENTATION ────────────────────────────────────
+  if(m.dokumen&&m.dokumen.length){
+    const preambleHTML=`
+      <div class="pdf-title" style="margin-bottom:6px">Dokumentasi Rapat</div>
+      <div style="font-size:11px;color:#7c8497;margin-bottom:18px">
+        Rapat: <strong>${esc(m.judul||'—')}</strong> &nbsp;|&nbsp;
+        Tanggal: <strong>${m.tanggal?formatDate(m.tanggal):'—'}</strong>
+      </div>`;
+    const preambleH=measureHTML(preambleHTML);
+
+    // Measure one doc row (3 images per row)
+    const sampleCellHTML=`<div class="pdf-doc-cell"><div style="width:100%;height:128px;background:#eee;border-radius:5px;border:1px solid #e2e8f0"></div><div class="pdf-doc-caption">test</div></div>`;
+    const sampleRowHTML=`<div class="pdf-doc-grid">${sampleCellHTML.repeat(3)}</div>`;
+    const rowH=measureHTML(sampleRowHTML)+16; // +gap
+
+    const COLS=3;
+    const docs=m.dokumen;
+    const totalRows=Math.ceil(docs.length/COLS);
+
+    let pages=[]; let cur=[]; let used=preambleH; let first=true;
+    for(let r=0;r<totalRows;r++){
+      if(used+rowH>SAFE_H && cur.length>0){
+        pages.push({rows:[...cur],first}); cur=[]; used=0; first=false;
+      }
+      cur.push(r); used+=rowH;
+    }
+    pages.push({rows:cur,first:first&&pages.length===0});
+    if(!pages.length) pages=[{rows:[],first:true}];
+
+    const totalDocPages=pages.length;
+    pages.forEach((pg,pi)=>{
+      const cellsHTML=pg.rows.flatMap(r=>{
+        const start=r*COLS;
+        return docs.slice(start,start+COLS).map((d,ci)=>{
+          const gi=start+ci;
+          return `<div class="pdf-doc-cell"><img src="${d.src}" alt="Dok${gi+1}" style="width:100%;height:128px;object-fit:cover;border-radius:5px;border:1px solid #e2e8f0"><div class="pdf-doc-caption">${esc(d.caption||'Dokumentasi '+(gi+1))}</div></div>`;
+        });
+      }).join('');
+      const contLabel=totalDocPages>1&&pi>0?' <span style="font-weight:400;font-size:10px;color:#9aacbc">(lanjutan)</span>':'';
+      const secTitle=`<div class="pdf-sec-title">Foto Dokumentasi${contLabel}</div>`;
+      const grid=`<div class="pdf-doc-grid">${cellsHTML}</div>`;
+      const content=(pi===0?preambleHTML:'')+secTitle+grid;
+      allDefs.push({label:'Dokumentasi', content});
+    });
+  }
+
+  // ─── Assemble final page elements ─────────────────────
+  const total=allDefs.length;
+  return allDefs.map((def,i)=>makePage(m, def.label, def.content, i+1, total));
 }
 
-function buildPage2(m){
-  const div=document.createElement('div'); div.className='a4-page';
-  const tot=m.dokumen?.length?3:2;
-  const rows=(m.peserta||[]).map((p,i)=>`<tr><td style="text-align:center;color:#4f7cff;font-weight:700">${i+1}</td><td>${esc(p.nama||'—')}</td><td>${esc(p.jabatan||'—')}</td><td>${esc(p.instansi||'—')}</td><td style="text-align:center">___________</td></tr>`).join('');
-  const empty=Array.from({length:Math.max(0,15-(m.peserta||[]).length)}).map((_,i)=>`<tr style="height:29px"><td style="text-align:center;color:#c5cfe8">${(m.peserta||[]).length+i+1}</td><td></td><td></td><td></td><td></td></tr>`).join('');
-  div.innerHTML=`${hdr(m,'Daftar Hadir',2,tot)}
-    <div class="pdf-title" style="margin-bottom:6px">Daftar Hadir Peserta Rapat</div>
-    <div style="font-size:11px;color:#7c8497;margin-bottom:19px">Rapat: <strong>${esc(m.judul||'—')}</strong> &nbsp;|&nbsp; Tanggal: <strong>${m.tanggal?formatDate(m.tanggal):'—'}</strong> &nbsp;|&nbsp; Tempat: <strong>${esc(m.tempat||'—')}</strong></div>
-    <div class="pdf-sec-title">Data Peserta & Tanda Tangan</div>
-    <table class="pdf-att-tbl"><thead><tr><th style="width:36px">No</th><th>Nama</th><th>Jabatan</th><th>Instansi / Unit</th><th style="width:106px;text-align:center">Tanda Tangan</th></tr></thead>
-    <tbody>${rows||'<tr><td colspan="5" style="color:#b0b8cc;padding:16px;text-align:center">Belum ada peserta</td></tr>'}${empty}</tbody></table>
-    <div class="pdf-page-num">— Halaman 2 dari ${tot} —</div><div class="pdf-footer-bar"></div>`;
-  applyDocFonts(div);
-  return div;
-}
-
-function buildPage3(m){
-  const div=document.createElement('div'); div.className='a4-page';
-  const cells=(m.dokumen||[]).map((d,i)=>`<div class="pdf-doc-cell"><img src="${d.src}" alt="Dok${i+1}" loading="lazy"><div class="pdf-doc-caption">${esc(d.caption||'Dokumentasi '+(i+1))}</div></div>`).join('');
-  div.innerHTML=`${hdr(m,'Dokumentasi',3,3)}
-    <div class="pdf-title" style="margin-bottom:6px">Dokumentasi Rapat</div>
-    <div style="font-size:11px;color:#7c8497;margin-bottom:19px">Rapat: <strong>${esc(m.judul||'—')}</strong> &nbsp;|&nbsp; Tanggal: <strong>${m.tanggal?formatDate(m.tanggal):'—'}</strong></div>
-    <div class="pdf-sec-title">Foto Dokumentasi</div>
-    <div class="pdf-doc-grid">${cells}</div>
-    <div class="pdf-page-num">— Halaman 3 dari 3 —</div><div class="pdf-footer-bar"></div>`;
-  applyDocFonts(div);
-  return div;
-}
-
-/* ═══════ PDF DOWNLOAD ═══════ */
+/* ═══════ PDF DOWNLOAD — renders same HTML as preview ═══════ */
 async function downloadPDF(){
-  const m=document.getElementById('previewModal')._m; if(!m)return;
+  const modal=document.getElementById('previewModal');
+  const m=modal._m; if(!m)return;
   const btn=document.getElementById('dlBtn'); const orig=btn.innerHTML;
   btn.innerHTML='<span class="spinner"></span> Memproses...'; btn.disabled=true;
-  toast('⏳ Membuat PDF A4...');
+  toast('⏳ Membuat PDF...');
 
-  try {
-    // Build pages in the hidden off-screen surface (always 794px, never affected by responsive CSS)
+  try{
+    // Render a fresh, clean set of pages off-screen (identical to preview)
     const surface=document.getElementById('pdf-render-surface');
     surface.innerHTML='';
-    surface.style.width='794px'; // ensure container is wide enough
+    surface.style.cssText='position:fixed;left:-9999px;top:0;width:794px;background:transparent;pointer-events:none;z-index:-1;';
 
-    const pageNodes=[];
-    [buildPage1(m),buildPage2(m),...(m.dokumen?.length?[buildPage3(m)]:[])].forEach(pg=>{
-      // Ensure no transform/scale override from LP zoom
-      pg.style.transform='none';
-      pg.style.width='794px';
-      pg.style.minHeight='1123px';
-      pg.style.fontSize='12px';
-      pg.style.padding='56px 56px 76px';
-      pg.style.margin='0 0 20px 0';
+    const pages=buildAllPages(m);
+    pages.forEach(pg=>{
+      pg.style.margin='0 0 4px 0';
+      pg.style.boxShadow='none';
       surface.appendChild(pg);
-      pageNodes.push(pg);
     });
 
-    const {jsPDF}=window.jspdf;
-    const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+    // Wait for images to load
+    const imgs=[...surface.querySelectorAll('img')];
+    await Promise.all(imgs.map(img=>img.complete?Promise.resolve():new Promise(r=>{img.onload=r;img.onerror=r;})));
+    // small extra delay for fonts
+    await new Promise(r=>setTimeout(r,200));
 
-    for(let i=0;i<pageNodes.length;i++){
-      const canvas=await html2canvas(pageNodes[i],{
-        scale:2,               // 2× for crisp 150dpi equivalent
-        useCORS:true,
-        allowTaint:true,
-        backgroundColor:'#ffffff',
-        logging:false,
-        width:794,
-        height:1123,
-        windowWidth:794,
+    const {jsPDF}=window.jspdf;
+    const mmW=210;
+
+    // First pass: capture all canvases
+    const canvases=[];
+    for(const pg of pages){
+      const W=794;
+      const H=pg.offsetHeight||1123;
+      const canvas=await html2canvas(pg,{
+        scale:2, useCORS:true, allowTaint:true,
+        backgroundColor:'#ffffff', logging:false,
+        width:W, height:H, windowWidth:W,
+        x:0, y:0,
+        onclone:(doc)=>{
+          doc.querySelectorAll('.a4-page').forEach(p=>{
+            p.style.transform='none'; p.style.margin='0'; p.style.boxShadow='none';
+          });
+        }
       });
-      const img=canvas.toDataURL('image/jpeg',0.95);
-      if(i>0)pdf.addPage('a4','portrait');
-      pdf.addImage(img,'JPEG',0,0,210,297); // exact A4 in mm
+      canvases.push({canvas, mmH: parseFloat(((H/W)*mmW).toFixed(2))});
     }
 
-    surface.innerHTML=''; // cleanup
+    surface.innerHTML=''; // cleanup early
+
+    // Build PDF
+    const firstH=canvases[0].mmH;
+    const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:[mmW,firstH]});
+    canvases.forEach(({canvas,mmH},i)=>{
+      if(i>0) pdf.addPage([mmW,mmH],'p');
+      pdf.internal.pageSize.width=mmW;
+      pdf.internal.pageSize.height=mmH;
+      pdf.addImage(canvas.toDataURL('image/jpeg',0.93),'JPEG',0,0,mmW,mmH);
+    });
+
     const fn=(m.judul||'rapat').replace(/[^a-z0-9\s]/gi,'').replace(/\s+/g,'_').slice(0,40);
     pdf.save(`${fn}_${m.tanggal||'notulen'}.pdf`);
-    toast('✅ PDF A4 berhasil didownload!');
-  } catch(e){ toast('❌ Gagal: '+e.message); console.error(e); }
+    toast('✅ PDF berhasil didownload!');
+  }catch(e){ toast('❌ Gagal: '+e.message); console.error(e); }
 
   btn.innerHTML=orig; btn.disabled=false;
 }
@@ -1073,16 +1318,19 @@ function resetFonts(){
 }
 
 // Inject font family into a page element
-function applyDocFonts(pageEl){
-  pageEl.style.fontFamily = `'${docBodyFont}',sans-serif`;
-  pageEl.style.fontSize   = docFontSize+'px';
-  // headings inside the page
-  pageEl.querySelectorAll('.pdf-logo-text,.pdf-title,.font-heading').forEach(el=>{
-    el.style.fontFamily=`'${docHeadingFont}',serif`;
-  });
-  pageEl.querySelectorAll('.pdf-tbl,.pdf-att-tbl,.pdf-meta-grid,.pdf-sec-title,.pdf-header-right,.pdf-doc-caption,.pdf-page-num').forEach(el=>{
-    el.style.fontFamily=`'${docBodyFont}',sans-serif`;
-    if(!el.classList.contains('pdf-sec-title')&&!el.classList.contains('pdf-logo-text')) el.style.fontSize=docFontSize+'px';
+function applyDocFonts(pageEl){ _applyFonts(pageEl,true); }
+function applyDocFontsEl(el){ _applyFonts(el,false); }
+function _applyFonts(el, isPage){
+  el.style.fontFamily = `'${docBodyFont}',sans-serif`;
+  el.style.fontSize   = docFontSize+'px';
+  if(isPage){
+    el.querySelectorAll('.pdf-logo-text,.pdf-title').forEach(e=>{
+      e.style.fontFamily=`'${docHeadingFont}',serif`;
+    });
+  }
+  el.querySelectorAll('.pdf-tbl,.pdf-att-tbl').forEach(e=>{
+    e.style.fontFamily=`'${docBodyFont}',sans-serif`;
+    e.style.fontSize=(docFontSize-1)+'px';
   });
 }
 
