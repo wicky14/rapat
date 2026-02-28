@@ -745,9 +745,15 @@ function tabMinutes(){
   return `<div class="card"><div class="card-header"><div class="card-title">📋 Informasi Rapat</div></div>
     <div class="form-grid">
       <div class="form-group"><label>Judul Rapat</label><input id="f_judul" type="text" placeholder="Contoh: Rapat Koordinasi Q1 2025" value="${esc(draft.judul)}"></div>
-      <div class="form-group"><label>Tanggal</label><input id="f_tanggal" type="date" value="${esc(draft.tanggal)}"></div>
-      <div class="form-group"><label>Waktu Mulai</label><input id="f_waktu" type="time" value="${esc(draft.waktu)}"></div>
-      <div class="form-group"><label>Waktu Selesai</label><input id="f_waktu_selesai" type="time" value="${esc(draft.waktu_selesai)}"></div>
+            <div class="form-group"><label>Tanggal</label><input id="f_tanggal" type="date" value="${esc(draft.tanggal)}"></div>
+            <div class="form-group" style="grid-column: span 2;">
+              <label>Waktu Rapat</label>
+              <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center;">
+                <input id="f_waktu" type="time" value="${esc(draft.waktu)}" style="width: 100%;">
+                <span style="color: var(--text-dim); font-size: 14px; font-weight: 500;">s/d</span>
+                <input id="f_waktu_selesai" type="time" value="${esc(draft.waktu_selesai)}" style="width: 100%;">
+              </div>
+            </div>
       <div class="form-group"><label>Tempat / Lokasi</label><input id="f_tempat" type="text" placeholder="Ruang Rapat Lantai 3" value="${esc(draft.tempat)}"></div>
       <div class="form-group"><label>Perihal</label><input id="f_perihal" type="text" placeholder="Perihal rapat" value="${esc(draft.perihal)}"></div>
       <div class="form-group"><label>Pimpinan Rapat</label><input id="f_pimpinan" type="text" placeholder="Nama pimpinan" value="${esc(draft.pimpinan)}"></div>
