@@ -310,6 +310,30 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
 #toast.show{transform:translateX(-50%) translateY(0);}
 @keyframes fadeUp{from{opacity:0;transform:translateY(13px);}to{opacity:1;transform:translateY(0);}}
 .fade-up{animation:fadeUp .3s ease forwards;}
+/* ── AUTO-SAVE INDICATOR ── */
+#as-ind{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:4px 9px;border-radius:20px;
+  font-size:11px;font-weight:600;color:var(--text-dim);
+  background:transparent;
+  opacity:0;transition:opacity .4s ease;
+  pointer-events:none;white-space:nowrap;flex-shrink:0;
+}
+#as-ind.visible{opacity:1;}
+#as-ind .as-dot{
+  width:6px;height:6px;border-radius:50%;flex-shrink:0;
+  background:var(--text-dim);transition:background .3s;
+}
+#as-ind.saving{color:var(--gold);}
+#as-ind.saving .as-dot{background:var(--gold);animation:asPulse .7s ease-in-out infinite;}
+#as-ind.saved{color:var(--success);}
+#as-ind.saved .as-dot{background:var(--success);animation:none;}
+#as-ind.restored{color:var(--accent);}
+#as-ind.restored .as-dot{background:var(--accent);animation:none;}
+#as-ind.error{color:var(--danger);}
+#as-ind.error .as-dot{background:var(--danger);animation:none;}
+@keyframes asPulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.35;transform:scale(.6);}}
+
 ::-webkit-scrollbar{width:5px;height:5px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px;}
@@ -419,7 +443,10 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
       <button class="mob-toggle" onclick="openSidebar()">☰</button>
       <div class="topbar-title" id="topTitle">Daftar Rapat</div>
     </div>
-    <div class="topbar-actions" id="topActions"></div>
+    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+      <span id="as-ind"><span class="as-dot"></span><span id="as-lbl"></span></span>
+      <div class="topbar-actions" id="topActions"></div>
+    </div>
   </div>
 
   <!-- Editor + Live Preview split -->
@@ -567,8 +594,17 @@ function renderList(){
 }
 
 /* ═══════ MEETING CRUD ═══════ */
-function newMeeting(){ currentMeetingId=null; draft=makeDraft(); activeTab='minutes'; lpOpen=false; showSection('form'); }
-function loadMeeting(id){ const m=meetings.find(x=>x.id===id); if(!m)return; currentMeetingId=id; draft=JSON.parse(JSON.stringify(m)); activeTab='minutes'; showSection('form'); }
+function newMeeting(){
+  currentMeetingId=null; draft=makeDraft(); activeTab='minutes'; lpOpen=false;
+  showSection('form');
+  if(tryRestoreAutoSave()){ renderTabContent(); asShow('restored','Draft dipulihkan ✓', 4000); }
+}
+function loadMeeting(id){
+  const m=meetings.find(x=>x.id===id); if(!m)return;
+  currentMeetingId=id; draft=JSON.parse(JSON.stringify(m)); activeTab='minutes';
+  showSection('form');
+  if(tryRestoreAutoSave()){ renderTabContent(); asShow('restored','Draft dipulihkan ✓', 4000); }
+}
 
 function confirmDeleteMeeting(id){
   const m=meetings.find(x=>x.id===id);
@@ -689,6 +725,7 @@ function renderTabContent(){
   </div>${body}</div>`;
   panel.querySelectorAll('input,select,textarea').forEach(el=>el.addEventListener('input',scheduleLP));
   panel.querySelectorAll('.rich-editor').forEach(el=>el.addEventListener('input',scheduleLP));
+  attachAutoSaveListeners();
   if(lpOpen) scheduleLP();
 }
 
@@ -707,12 +744,10 @@ function snapshotDraft(){
 function tabMinutes(){
   return `<div class="card"><div class="card-header"><div class="card-title">📋 Informasi Rapat</div></div>
     <div class="form-grid">
-      <div class="form-group full"><label>Judul Rapat</label><input id="f_judul" type="text" placeholder="Contoh: Rapat Koordinasi Q1 2025" value="${esc(draft.judul)}"></div>
-      <div class="form-group full" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:end">
-        <div class="form-group" style="margin:0"><label>Tanggal</label><input id="f_tanggal" type="date" value="${esc(draft.tanggal)}"></div>
-        <div class="form-group" style="margin:0"><label>Waktu Mulai</label><input id="f_waktu" type="time" value="${esc(draft.waktu)}"></div>
-        <div class="form-group" style="margin:0"><label>Waktu Selesai</label><input id="f_waktu_selesai" type="time" value="${esc(draft.waktu_selesai)}"></div>
-      </div>
+      <div class="form-group"><label>Judul Rapat</label><input id="f_judul" type="text" placeholder="Contoh: Rapat Koordinasi Q1 2025" value="${esc(draft.judul)}"></div>
+      <div class="form-group"><label>Tanggal</label><input id="f_tanggal" type="date" value="${esc(draft.tanggal)}"></div>
+      <div class="form-group"><label>Waktu Mulai</label><input id="f_waktu" type="time" value="${esc(draft.waktu)}"></div>
+      <div class="form-group"><label>Waktu Selesai</label><input id="f_waktu_selesai" type="time" value="${esc(draft.waktu_selesai)}"></div>
       <div class="form-group"><label>Tempat / Lokasi</label><input id="f_tempat" type="text" placeholder="Ruang Rapat Lantai 3" value="${esc(draft.tempat)}"></div>
       <div class="form-group"><label>Perihal</label><input id="f_perihal" type="text" placeholder="Perihal rapat" value="${esc(draft.perihal)}"></div>
       <div class="form-group"><label>Pimpinan Rapat</label><input id="f_pimpinan" type="text" placeholder="Nama pimpinan" value="${esc(draft.pimpinan)}"></div>
@@ -770,14 +805,46 @@ function richEditor(id,val){
     <button onclick="sym('※')" onmousedown="return false">※</button>
     <button onclick="sym('▶')" onmousedown="return false">▶</button>
     <button onclick="sym('◆')" onmousedown="return false">◆</button>
-  </div><div class="rich-editor" id="${id}" contenteditable="true" oninput="scheduleLP()">${val}</div></div>`;
+  </div><div class="rich-editor" id="${id}" contenteditable="true" oninput="scheduleLP();scheduleAutoSave()">${val}</div></div>`;
 }
 function fmt(cmd){ document.execCommand(cmd,false,null); }
 function sym(s){ document.execCommand('insertText',false,s); }
 
-function openAddPoint(){ editingPointIdx=null; document.getElementById('point-editor').style.display='block'; document.getElementById('pe-title').textContent='Tambah Poin Rapat'; document.getElementById('pe_poin').value=''; const ed=document.getElementById('pe_pen'); if(ed)ed.innerHTML=''; document.getElementById('pe_poin').focus(); }
-function editPoint(i){ editingPointIdx=i; const p=draft.points[i]; document.getElementById('point-editor').style.display='block'; document.getElementById('pe-title').textContent='Edit Poin Rapat'; document.getElementById('pe_poin').value=p.poin; const ed=document.getElementById('pe_pen'); if(ed)ed.innerHTML=p.penjelasan||''; document.getElementById('pe_poin').focus(); }
-function savePoint(){ const poin=document.getElementById('pe_poin').value.trim(); const ed=document.getElementById('pe_pen'); const pen=ed?ed.innerHTML.trim():''; if(!poin){toast('⚠ Poin harus diisi');return;} if(editingPointIdx!==null)draft.points[editingPointIdx]={poin,penjelasan:pen}; else draft.points.push({poin,penjelasan:pen}); document.getElementById('point-editor').style.display='none'; renderTabContent(); scheduleLP(); }
+function openAddPoint(){
+  editingPointIdx=null;
+  const ed=document.getElementById('point-editor'); if(ed) ed.style.display='block';
+  document.getElementById('pe-title').textContent='Tambah Poin Rapat';
+  document.getElementById('pe_poin').value='';
+  const pen=document.getElementById('pe_pen'); if(pen) pen.innerHTML='';
+  document.getElementById('pe_poin').focus();
+  // attach auto-save listeners on point editor inputs
+  setTimeout(attachPointEditorAutoSave, 30);
+}
+function editPoint(i){
+  editingPointIdx=i; const p=draft.points[i];
+  const ed=document.getElementById('point-editor'); if(ed) ed.style.display='block';
+  document.getElementById('pe-title').textContent='Edit Poin Rapat';
+  document.getElementById('pe_poin').value=p.poin;
+  const pen=document.getElementById('pe_pen'); if(pen) pen.innerHTML=p.penjelasan||'';
+  document.getElementById('pe_poin').focus();
+  setTimeout(attachPointEditorAutoSave, 30);
+}
+function attachPointEditorAutoSave(){
+  const poin=document.getElementById('pe_poin');
+  const pen=document.getElementById('pe_pen');
+  if(poin&&!poin._as){ poin._as=true; poin.addEventListener('input', scheduleAutoSave); }
+  if(pen&&!pen._as){   pen._as=true;  pen.addEventListener('input', scheduleAutoSave); }
+}
+function savePoint(){
+  const poin=document.getElementById('pe_poin').value.trim();
+  const ed=document.getElementById('pe_pen'); const pen=ed?ed.innerHTML.trim():'';
+  if(!poin){toast('⚠ Poin harus diisi');return;}
+  if(editingPointIdx!==null) draft.points[editingPointIdx]={poin,penjelasan:pen};
+  else draft.points.push({poin,penjelasan:pen});
+  document.getElementById('point-editor').style.display='none';
+  renderTabContent(); scheduleLP();
+  autoSaveNow(); // simpan langsung setelah poin ditambah/diubah
+}
 function cancelPoint(){ document.getElementById('point-editor').style.display='none'; editingPointIdx=null; }
 
 /* ── Tab: Attendance ── */
@@ -787,15 +854,21 @@ function tabAttendance(){
       ? `<div style="text-align:center;padding:32px;color:var(--text-dim)"><div style="font-size:28px;margin-bottom:8px">👤</div><div style="font-size:13px">Klik <strong>Tambah Peserta</strong></div></div>`
       : `<div style="overflow-x:auto"><table class="att-table"><thead><tr><th style="width:38px">No</th><th>Nama</th><th>Jabatan</th><th>Instansi / Unit</th><th style="width:52px"></th></tr></thead><tbody id="peserta-tbody">
         ${draft.peserta.map((p,i)=>`<tr><td style="text-align:center;color:var(--accent);font-family:'DM Mono',monospace;font-size:12px">${i+1}</td>
-          <td><input class="att-inp" type="text" value="${esc(p.nama)}" placeholder="Nama" oninput="scheduleLP()"></td>
-          <td><input class="att-inp" type="text" value="${esc(p.jabatan)}" placeholder="Jabatan" oninput="scheduleLP()"></td>
-          <td><input class="att-inp" type="text" value="${esc(p.instansi)}" placeholder="Instansi" oninput="scheduleLP()"></td>
+          <td><input class="att-inp" type="text" value="${esc(p.nama)}" placeholder="Nama" oninput="scheduleLP();scheduleAutoSave()"></td>
+          <td><input class="att-inp" type="text" value="${esc(p.jabatan)}" placeholder="Jabatan" oninput="scheduleLP();scheduleAutoSave()"></td>
+          <td><input class="att-inp" type="text" value="${esc(p.instansi)}" placeholder="Instansi" oninput="scheduleLP();scheduleAutoSave()"></td>
           <td><button class="btn btn-danger btn-sm" onclick="confirmDeletePeserta(${i})">🗑</button></td>
         </tr>`).join('')}
       </tbody></table></div>`}
   </div>`;
 }
-function addPeserta(){ collectAttendance(); draft.peserta.push({nama:'',jabatan:'',instansi:''}); renderTabContent(); setTimeout(()=>{ const rows=document.querySelectorAll('#peserta-tbody tr'); if(rows.length)rows[rows.length-1].querySelector('input')?.focus(); },60); }
+function addPeserta(){
+  collectAttendance(); draft.peserta.push({nama:'',jabatan:'',instansi:''}); renderTabContent();
+  setTimeout(()=>{
+    const rows=document.querySelectorAll('#peserta-tbody tr');
+    if(rows.length) rows[rows.length-1].querySelector('input')?.focus();
+  },60);
+}
 
 /* ── Tab: Docs ── */
 function tabDocs(){
@@ -804,7 +877,7 @@ function tabDocs(){
       <img src="${d.src}" alt="dok${i}" loading="lazy">
       <button class="doc-remove" onclick="confirmRemoveDoc(${i})">✕</button>
     </div>
-    <input class="cap-inp" type="text" placeholder="Keterangan foto..." value="${esc(d.caption||'')}" onchange="draft.dokumen[${i}].caption=this.value;scheduleLP()">
+    <input class="cap-inp" type="text" placeholder="Keterangan foto..." value="${esc(d.caption||'')}" onchange="draft.dokumen[${i}].caption=this.value;scheduleLP();scheduleAutoSave()">
   </div>`).join('');
   return `<div class="card"><div class="card-header"><div class="card-title">🖼 Dokumentasi <span class="badge badge-gold">${draft.dokumen.length} Foto</span></div><button class="btn btn-secondary btn-sm" onclick="document.getElementById('doc-up').click()">+ Unggah Foto</button></div>
     <input type="file" id="doc-up" accept="image/*" multiple style="display:none" onchange="handleDocs(this)">
@@ -838,7 +911,7 @@ async function handleDocs(input){
     const src=await compressImage(file);
     draft.dokumen.push({src,caption:''});
     loaded++;
-    if(loaded===files.length){renderTabContent();scheduleLP();}
+    if(loaded===files.length){renderTabContent();scheduleLP();autoSaveNow();}
   }
   input.value='';
 }
@@ -852,6 +925,7 @@ function saveMeeting(){
   else { const idx=meetings.findIndex(m=>m.id===draft.id); if(idx>=0)meetings[idx]={...draft}; }
   currentMeetingId=draft.id; save(); toast('✅ Rapat berhasil disimpan!'); renderSidebarList();
   document.getElementById('topTitle').textContent='Edit Rapat';
+  clearAutoSaveDraft();
 }
 
 /* ═══════ PREVIEW MODAL ═══════ */
@@ -1331,6 +1405,163 @@ function _applyFonts(el, isPage){
   el.querySelectorAll('.pdf-tbl,.pdf-att-tbl').forEach(e=>{
     e.style.fontFamily=`'${docBodyFont}',sans-serif`;
     e.style.fontSize=(docFontSize-1)+'px';
+  });
+}
+
+/* ═══════ AUTO-SAVE ═══════ */
+const AS_DRAFT_KEY = 'meetpro_autosave_v3';
+let _asTimer = null;
+let _asHideTimer = null;
+
+function asShow(state, label, autohide=0){
+  const el=document.getElementById('as-ind');
+  const lb=document.getElementById('as-lbl');
+  if(!el||!lb) return;
+  clearTimeout(_asHideTimer);
+  el.className='visible '+state;
+  lb.textContent=label;
+  if(autohide>0) _asHideTimer=setTimeout(()=>el.classList.remove('visible'), autohide);
+}
+function asHide(){ document.getElementById('as-ind')?.classList.remove('visible'); }
+
+// Collect semua data termasuk poin yang SEDANG ditulis (belum diklik Simpan Poin)
+function collectAll(){
+  collectFormData();
+  if(activeTab==='attendance') collectAttendance();
+
+  // Tangkap poin yang sedang diedit di point-editor (belum disimpan user)
+  const peEditor = document.getElementById('point-editor');
+  if(peEditor && peEditor.style.display !== 'none'){
+    const poin = (document.getElementById('pe_poin')?.value||'').trim();
+    const pen  = document.getElementById('pe_pen')?.innerHTML?.trim()||'';
+    if(poin){
+      if(editingPointIdx !== null && draft.points[editingPointIdx]){
+        // update poin yang sedang diedit sementara (tidak ubah draft.points permanen)
+        draft.points[editingPointIdx] = {poin, penjelasan: pen};
+      } else if(editingPointIdx === null){
+        // poin baru yang belum disimpan — tambahkan sementara
+        // tapi hanya untuk keperluan auto-save snapshot, bukan modifikasi draft langsung
+        // kita buat snapshot terpisah
+      }
+    }
+  }
+}
+
+function autoSaveNow(){
+  if(currentSection!=='form') return;
+
+  // Kumpulkan semua input form ke draft
+  collectFormData();
+  if(activeTab==='attendance') collectAttendance();
+
+  // Buat snapshot draft lengkap termasuk poin yang sedang ditulis
+  const snap = JSON.parse(JSON.stringify(draft));
+
+  // Cek apakah ada poin yang sedang aktif diedit di point-editor
+  const peEditor = document.getElementById('point-editor');
+  const peOpen   = peEditor && peEditor.style.display !== 'none';
+  if(peOpen){
+    const poin = (document.getElementById('pe_poin')?.value||'').trim();
+    const pen  = document.getElementById('pe_pen')?.innerHTML?.trim()||'';
+    // Jika EDIT poin yang sudah ada → update di snap (tidak duplikat)
+    if(editingPointIdx !== null && snap.points[editingPointIdx] && poin){
+      snap.points[editingPointIdx] = {poin, penjelasan: pen};
+    }
+    // Jika TAMBAH poin baru → JANGAN push ke snap.points
+    // Simpan terpisah di AS_DRAFT_KEY saja, restore nanti buka editor tanpa menyentuh draft.points
+  }
+
+  try{
+    // 1. Simpan ke meetings (daftar rapat) — ini yang penting
+    if(!snap.id){
+      // Rapat baru: buat id, masukkan ke meetings, update draft & currentMeetingId
+      snap.id = uid();
+      draft.id = snap.id;
+      currentMeetingId = snap.id;
+      meetings.push(JSON.parse(JSON.stringify(snap)));
+    } else {
+      // Rapat sudah ada: update di meetings
+      const idx = meetings.findIndex(m=>m.id===snap.id);
+      if(idx>=0) meetings[idx] = JSON.parse(JSON.stringify(snap));
+      else meetings.push(JSON.parse(JSON.stringify(snap)));
+    }
+    // Tulis meetings ke localStorage
+    localStorage.setItem('meetpro_v3', JSON.stringify(meetings));
+    // Update sidebar list tanpa re-render seluruh form
+    renderSidebarList();
+    // Update topbar title kalau sebelumnya "Rapat Baru"
+    const topTitle = document.getElementById('topTitle');
+    if(topTitle && topTitle.textContent==='Rapat Baru') topTitle.textContent='Edit Rapat';
+
+    // 2. Simpan snapshot ke AS_DRAFT_KEY (untuk restore poin yang sedang ditulis)
+    localStorage.setItem(AS_DRAFT_KEY, JSON.stringify({
+      draftData: snap,
+      meetingId: snap.id,
+      activeTab, ts: Date.now(),
+      pointEditorOpen: peOpen,
+      pe_poin: peOpen ? (document.getElementById('pe_poin')?.value||'') : '',
+      pe_pen:  peOpen ? (document.getElementById('pe_pen')?.innerHTML||'') : '',
+      pe_idx:  peOpen ? editingPointIdx : undefined
+    }));
+
+    asShow('saved','Tersimpan otomatis', 3000);
+  } catch(e){
+    asShow('error','Gagal simpan', 4000);
+    console.warn('auto-save error', e);
+  }
+}
+
+function scheduleAutoSave(){
+  if(currentSection!=='form') return;
+  clearTimeout(_asTimer);
+  asShow('saving','Menyimpan...');
+  _asTimer=setTimeout(autoSaveNow, 1500);
+}
+
+function clearAutoSaveDraft(){
+  localStorage.removeItem(AS_DRAFT_KEY);
+  asHide();
+}
+
+// Returns true if a valid auto-save draft was restored into `draft`
+function tryRestoreAutoSave(){
+  try{
+    const raw=localStorage.getItem(AS_DRAFT_KEY);
+    if(!raw) return false;
+    const p=JSON.parse(raw);
+    if(!p?.draftData) return false;
+    const isSame = p.meetingId===currentMeetingId;
+    if(!isSame) return false;
+    draft=p.draftData;
+    currentMeetingId=p.meetingId||null;
+    activeTab=p.activeTab||'minutes';
+    // Restore poin yang sedang ditulis setelah render
+    if(p.pointEditorOpen && p.pe_poin){
+      setTimeout(()=>{
+        const restoredIdx = (p.pe_idx !== undefined && p.pe_idx !== null) ? p.pe_idx : null;
+        editingPointIdx = restoredIdx;
+
+        // Buka editor secara manual — JANGAN pakai openAddPoint() karena itu reset editingPointIdx=null
+        const ed = document.getElementById('point-editor');
+        if(ed) ed.style.display = 'block';
+        document.getElementById('pe-title').textContent = restoredIdx !== null ? 'Edit Poin Rapat' : 'Tambah Poin Rapat';
+        const pi = document.getElementById('pe_poin'); if(pi) pi.value = p.pe_poin;
+        const pe = document.getElementById('pe_pen');  if(pe) pe.innerHTML = p.pe_pen||'';
+        attachPointEditorAutoSave();
+      }, 120);
+    }
+    return true;
+  } catch(e){ return false; }
+}
+
+// Attach auto-save listeners after tab content is rendered
+function attachAutoSaveListeners(){
+  const panel=document.getElementById('editorPanel'); if(!panel) return;
+  panel.querySelectorAll('input,select,textarea').forEach(el=>{
+    if(!el._as){ el._as=true; el.addEventListener('input', scheduleAutoSave); }
+  });
+  panel.querySelectorAll('.rich-editor').forEach(el=>{
+    if(!el._as){ el._as=true; el.addEventListener('input', scheduleAutoSave); }
   });
 }
 
